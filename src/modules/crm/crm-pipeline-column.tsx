@@ -2,6 +2,7 @@
 
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 import type { CrmLead } from "@/lib/crm-data";
+import { cn } from "@/lib/utils";
 import { CrmPipelineCard } from "@/modules/crm/crm-pipeline-card";
 
 export function CrmPipelineColumn({
@@ -22,10 +23,10 @@ export function CrmPipelineColumn({
   onOpenLead: (lead: CrmLead) => void;
 }) {
   return (
-    <div className="flex h-full min-h-0 min-w-[280px] shrink-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="mb-2 flex shrink-0 items-center gap-2 px-0.5">
         <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden />
-        <h2 className="text-[0.7rem] font-normal uppercase tracking-[0.08em] text-[rgba(255,255,255,0.4)]">
+        <h2 className="min-w-0 truncate text-[0.7rem] font-normal uppercase tracking-[0.08em] text-[rgba(255,255,255,0.4)]">
           {label}
         </h2>
       </div>
@@ -34,7 +35,7 @@ export function CrmPipelineColumn({
           <div
             ref={dropProvided.innerRef}
             {...dropProvided.droppableProps}
-            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pb-2 pr-1 transition-colors"
+            className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden pb-2 pr-1 transition-colors"
           >
             {leads.map((lead, index) => (
               <Draggable key={lead.id} draggableId={lead.id} index={index}>
@@ -43,7 +44,10 @@ export function CrmPipelineColumn({
                     ref={dragProvided.innerRef}
                     {...dragProvided.draggableProps}
                     {...dragProvided.dragHandleProps}
-                    className={dropSnapshot.isDraggingOver ? "rounded-[8px] border border-[#ff4500]/20 p-0.5" : ""}
+                    className={cn(
+                      "min-w-0",
+                      dropSnapshot.isDraggingOver && "rounded-[8px] border border-[#ff4500]/20 p-0.5",
+                    )}
                   >
                     <CrmPipelineCard
                       lead={lead}

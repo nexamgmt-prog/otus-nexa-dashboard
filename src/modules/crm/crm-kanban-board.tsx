@@ -45,7 +45,13 @@ export function CrmKanbanBoard({
       {/* Horizontal scrollbar stays at the bottom of the board viewport (no page scroll needed). */}
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-1">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex h-full min-h-0 w-max flex-row gap-4 px-1">
+          <div
+            className="grid h-full min-h-0 gap-4 px-1"
+            style={{
+              gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+              width: `max(100%, calc(${columns.length} * 280px + ${Math.max(columns.length - 1, 0)} * 1rem + 0.5rem))`,
+            }}
+          >
             {columns.map((col) => (
               <CrmPipelineColumn
                 key={col.id}

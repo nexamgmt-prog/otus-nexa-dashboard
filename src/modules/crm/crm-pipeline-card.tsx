@@ -39,16 +39,16 @@ export function CrmPipelineCard({
         }
       }}
       className={cn(
-        "w-full cursor-pointer rounded-[8px] border border-[var(--border)] bg-[#161616] p-3 text-left transition-colors hover:border-[var(--border-strong)]",
+        "w-full min-w-0 overflow-hidden cursor-pointer rounded-[8px] border border-[var(--border)] bg-[#161616] p-3 text-left transition-colors hover:border-[var(--border-strong)]",
         isDragging && "border-[#ff4500]/40 opacity-90",
       )}
     >
-      <p className="pr-1 text-sm font-normal leading-snug text-white">{lead.name}</p>
+      <p className="min-w-0 truncate pr-1 text-sm font-normal leading-snug text-white">{lead.name}</p>
       {lead.company?.trim() ? (
-        <p className="mt-1 truncate text-xs font-light text-[rgba(255,255,255,0.45)]">{lead.company}</p>
+        <p className="mt-1 min-w-0 truncate text-xs font-light text-[rgba(255,255,255,0.45)]">{lead.company}</p>
       ) : null}
-      <div className="mt-2">
-        <OwnerAvatars names={owners} />
+      <div className="mt-2 min-w-0">
+        <OwnerAvatars names={owners} className="min-w-0" />
       </div>
       <p className="mono-num mt-2 text-xs font-medium text-[#ff4500]">{formatLeadValue(leadProposalValue(lead))}</p>
       {leadClosedValue(lead) > 0 ? (
@@ -59,7 +59,7 @@ export function CrmPipelineCard({
       <p className="mt-1 text-xs font-light text-[rgba(255,255,255,0.4)]">
         {formatLeadCreatedAt(lead.created_at)}
       </p>
-      <span className="mt-2 inline-block rounded-md border border-[rgba(255,69,0,0.35)] bg-[rgba(255,69,0,0.1)] px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-[#ff9a66]">
+      <span className="mt-2 inline-block max-w-full truncate rounded-md border border-[rgba(255,69,0,0.35)] bg-[rgba(255,69,0,0.1)] px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-[#ff9a66]">
         {crmSourceLabel(sourceKey, language)}
       </span>
     </div>
