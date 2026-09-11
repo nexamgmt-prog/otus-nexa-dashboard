@@ -10,8 +10,8 @@ import {
   normalizeLeadStatus,
   type CrmLead,
 } from "@/lib/crm-data";
-import { funnelPipelinePath } from "@/lib/crm-funnels";
-import { crmLeadStatusLabel } from "@/lib/crm-i18n";
+import { funnelPipelinePath, isResumeFunnelSlug } from "@/lib/crm-funnels";
+import { crmLeadStatusLabel, crmResumeStatusLabel } from "@/lib/crm-i18n";
 import type { AppLanguage } from "@/lib/locale-types";
 import { cn } from "@/lib/utils";
 import { CrmDashboardCard, CrmDashboardSectionTitle, CrmDashboardSkeleton } from "./crm-dashboard-card";
@@ -28,6 +28,11 @@ type Props = {
 
 function leadPipelineHref(lead: CrmLead): string {
   return `${funnelPipelinePath(lead.funnel)}?lead=${encodeURIComponent(lead.id)}`;
+}
+
+function funnelStageLabel(lead: CrmLead, language: AppLanguage): string {
+  if (isResumeFunnelSlug(lead.funnel)) return crmResumeStatusLabel(lead.status, language);
+  return crmLeadStatusLabel(lead.status, language);
 }
 
 function leadDealKind(lead: CrmLead): "sold" | "quoted" | "other" {
@@ -69,11 +74,6 @@ export function CrmDashboardServiceProducts({
   }, [leads, serviceProductLabels]);
 
   const openProduct = (label: string) => {
-    const matches = leadsByProduct[label] ?? [];
-    if (matches.length === 1) {
-      router.push(leadPipelineHref(matches[0]));
-      return;
-    }
     setOpenLabel((prev) => (prev === label ? null : label));
   };
 
@@ -96,7 +96,7 @@ export function CrmDashboardServiceProducts({
               const count = serviceProductMap[label] ?? 0;
               const pct = Math.round((count / serviceProductTotal) * 1000) / 10;
               const matches = leadsByProduct[label] ?? [];
-              const expanded = openLabel === label && matches.length > 1;
+              const expanded = openLabel === label && matches.length > 0;
               return (
                 <li key={label}>
                   <button
@@ -125,32 +125,35 @@ export function CrmDashboardServiceProducts({
                     <ul className="mt-2 space-y-1 border-l border-white/[0.08] pl-3">
                       {matches.map((lead) => {
                         const kind = leadDealKind(lead);
-                        const dealLabel =
-                          kind === "sold" ? lt("Sold") : kind === "quoted" ? lt("Quoted") : crmLeadStatusLabel(lead.status, language);
+                        const stage = funnelStageLabel(lead, language);
+                        const dealLabel = kind === "sold" ? lt("Sold") : kind === "quoted" ? lt("Quoted") : null;
                         const amount = kind === "sold" ? leadClosedValue(lead) : leadProposalValue(lead);
                         return (
                           <li key={lead.id}>
                             <button
                               type="button"
                               onClick={() => router.push(leadPipelineHref(lead))}
-                              className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-white/[0.04]"
+                              className="flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-white/[0.04]"
                             >
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-xs text-white">{lead.name}</span>
                                 <span className="block truncate text-[0.65rem] text-[rgba(255,255,255,0.4)]">
                                   {lead.company?.trim() || lead.owner || "—"}
                                 </span>
-                              </span>
-                              <span
-                                className={cn(
-                                  "shrink-0 text-[0.65rem] uppercase tracking-wide",
-                                  kind === "sold" ? "text-emerald-400" : "text-[rgba(255,255,255,0.45)]",
-                                )}
-                              >
-                                {dealLabel}
+                                <span
+                                  className={cn(
+                                    "mt-1 block truncate text-[0.65rem] uppercase tracking-wide",
+                                    kind === "sold" ? "text-emerald-400" : "text-[rgba(255,255,255,0.55)]",
+                                  )}
+                                >
+                                  {stage}
+                                  {dealLabel && dealLabel.toLowerCase() !== stage.toLowerCase()
+                                    ? ` · ${dealLabel}`
+                                    : ""}
+                                </span>
                               </span>
                               {amount > 0 ? (
-                                <span className="mono-num shrink-0 text-[0.65rem] text-[rgba(255,255,255,0.55)]">
+                                <span className="mono-num mt-0.5 shrink-0 text-[0.65rem] text-[rgba(255,255,255,0.55)]">
                                   {formatLeadValue(amount)}
                                 </span>
                               ) : null}
