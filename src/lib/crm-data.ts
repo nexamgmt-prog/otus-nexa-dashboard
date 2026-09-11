@@ -657,7 +657,7 @@ export function leadOfferingNames(lead: Pick<CrmLead, "offering_items" | "servic
   if (lead.offering_items.length > 0) {
     return lead.offering_items.map((item) => item.name);
   }
-  return [lead.service_product];
+  return lead.service_product ? [lead.service_product] : [];
 }
 
 export function leadHasServiceProduct(
