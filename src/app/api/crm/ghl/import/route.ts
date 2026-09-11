@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadGhlImportConfigFromEnv, runGhlImport } from "@/lib/server/ghl/ghl-import";
+import { requireApiUser, sessionIsAgencyAdmin } from "@/lib/server/require-api-user";
 
 type ImportBody = {
   clientSlug?: string;
@@ -12,8 +13,13 @@ type ImportBody = {
 export async function POST(request: Request) {
   const secret = request.headers.get("x-import-secret")?.trim() ?? "";
   const expected = process.env.GHL_IMPORT_SECRET?.trim() ?? "";
-  if (!expected || secret !== expected) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  const secretOk = Boolean(expected && secret === expected);
+  if (!secretOk) {
+    const auth = await requireApiUser(request);
+    if (!auth.ok) return auth.response;
+    if (!sessionIsAgencyAdmin(auth.user)) {
+      return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+    }
   }
 
   let body: ImportBody = {};

@@ -9,6 +9,7 @@ import {
   isCrmAppointmentDone,
   isCrmDashboardLead,
   leadClosedValue,
+  leadOfferingNames,
   leadProposalValue,
   leadStageValueSum,
   mapCrmActivityLogRow,
@@ -76,11 +77,7 @@ function sourceCountMap(leads: CrmLead[], dataClientSlug: string | null): Record
 function serviceProductCountMap(leads: CrmLead[]): Record<string, number> {
   const m: Record<string, number> = {};
   for (const lead of leads) {
-    const names =
-      lead.offering_items.length > 0
-        ? lead.offering_items.map((item) => item.name)
-        : [lead.service_product];
-    for (const raw of names) {
+    for (const raw of leadOfferingNames(lead)) {
       const key = normalizeServiceProduct(raw);
       if (!key) continue;
       m[key] = (m[key] ?? 0) + 1;

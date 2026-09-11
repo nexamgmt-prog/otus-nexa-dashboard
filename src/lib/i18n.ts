@@ -873,6 +873,9 @@ const platformPtBR: Record<string, string> = {
   total: "total",
   "won /": "ganhos /",
   "Won deals": "Negócios ganhos",
+  Sold: "Vendido",
+  Quoted: "Cotado",
+  "View who was quoted or sold this product": "Ver para quem este produto foi cotado ou vendido",
   "In proposal": "Em proposta",
   "leads ·": "leads ·",
   "Priority leads": "Leads prioritários",
@@ -1024,6 +1027,15 @@ const platformPtBR: Record<string, string> = {
     "O snippet do CRM deve usar a URL de produção acima — nunca localhost em um site publicado.",
   "Paste this snippet in the client site footer (Webflow Custom Code). Always use this production endpoint.":
     "Cole este snippet no rodapé do site do cliente (Webflow → Custom Code). Sempre use este endpoint de produção.",
+  "Integration key (backends only)": "Chave de integração (só backend)",
+  "Give this key only for an official backend integration. Never put it on the website or in the snippet.":
+    "Entregue esta chave só para uma integração oficial de backend. Nunca coloque no site nem no snippet.",
+  "Required for the website snippet. Include both .webflow.io and the custom domain. The snippet has no API key.":
+    "Obrigatório para o snippet do site. Inclua o .webflow.io e o domínio. O snippet não leva chave de API.",
+  "Required for the website snippet. The snippet has no API key.":
+    "Obrigatório para o snippet do site. O snippet não leva chave de API.",
+  "Add at least one allowed origin or website forms without an integration key will be rejected.":
+    "Adicione pelo menos uma origem permitida, ou o formulário do site sem chave de integração será recusado.",
 };
 
 export const translations = {

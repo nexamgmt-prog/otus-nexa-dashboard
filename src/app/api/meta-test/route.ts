@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/server/require-api-user";
 
 const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const AD_ACCOUNT_ID_RAW = process.env.META_AD_ACCOUNT_ID;
@@ -10,7 +11,9 @@ function normalizeAdAccountId(raw: string): string {
 }
 
 /** Lightweight check that Marketing API reads work for the configured ad account. */
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireApiUser(request);
+  if (!auth.ok) return auth.response;
   if (!ACCESS_TOKEN || !AD_ACCOUNT_ID_RAW?.trim()) {
     return NextResponse.json(
       { ok: false, error: "META_ACCESS_TOKEN or META_AD_ACCOUNT_ID is not configured." },

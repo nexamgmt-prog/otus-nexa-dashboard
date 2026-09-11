@@ -91,16 +91,9 @@ import {
   resolveHeroImageUrl,
   resolveSessionClientApis,
 } from "@/lib/client-apis";
-import {
-  clientApiCredentialsToDb,
-  EMPTY_CLIENT_API_CREDENTIALS,
-  parseClientApiCredentials,
-} from "@/lib/client-api-credentials";
-import {
-  clientCrmIntegrationToDb,
-  EMPTY_CLIENT_CRM_INTEGRATION,
-  parseClientCrmIntegration,
-} from "@/lib/client-crm-integration";
+import { EMPTY_CLIENT_API_CREDENTIALS, parseClientApiCredentials } from "@/lib/client-api-credentials";
+import { EMPTY_CLIENT_CRM_INTEGRATION, parseClientCrmIntegration } from "@/lib/client-crm-integration";
+import { APP_USERS_PUBLIC_SELECT, CLIENTS_PUBLIC_SELECT } from "@/lib/public-selects";
 import {
   clientWhatsAppConfigToDb,
   EMPTY_CLIENT_WHATSAPP_CONFIG,
@@ -407,10 +400,6 @@ function normalizeUserModules(value: unknown): ModuleKey[] {
   return value.map(String).filter((m): m is ModuleKey => ALL_MODULE_KEYS.includes(m as ModuleKey));
 }
 
-function hashAppPassword(password: string): string {
-  return btoa(unescape(encodeURIComponent(password)));
-}
-
 function appUserFromAppUsersRow(row: Record<string, unknown>): AppUser {
   const emailRaw = row.email;
   const company = normalizeUserCompany(row.company);
@@ -477,6 +466,24 @@ function clientFromRow(row: Record<string, unknown>): Client {
     accountId: row.account_id != null && String(row.account_id).trim() !== "" ? String(row.account_id) : null,
     createdAt: String(row.created_at ?? ""),
   };
+}
+
+async function persistClientSecrets(
+  clientId: string,
+  apiCredentials?: Client["apiCredentials"],
+  crmIntegration?: Client["crmIntegration"],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (apiCredentials === undefined && crmIntegration === undefined) return { ok: true };
+  const res = await fetch(`/api/clients/${clientId}/secrets`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiCredentials, crmIntegration }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: json.error ?? "Could not save client secrets." };
+  }
+  return { ok: true };
 }
 
 type DbProjectRow = {
@@ -684,7 +691,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const fetchClients = useCallback(() => {
     void supabase
       .from("clients")
-      .select("*")
+      .select(CLIENTS_PUBLIC_SELECT)
       .order("name", { ascending: true })
       .then(({ data, error }) => {
         if (error) {
@@ -705,7 +712,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setClientsLoading(true);
     void supabase
       .from("clients")
-      .select("*")
+      .select(CLIENTS_PUBLIC_SELECT)
       .order("name", { ascending: true })
       .then(({ data, error }) => {
         if (!mounted) return;
@@ -1026,7 +1033,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
             console.error("[supabase] app_users seed failed:", seedError.message);
           }
         }
-        const { data, error } = await supabase.from("app_users").select("*").order("name", { ascending: true });
+        const { data, error } = await supabase.from("app_users").select(APP_USERS_PUBLIC_SELECT).order("name", { ascending: true });
         if (!mounted) return;
         if (error) {
           console.error("[supabase] app_users fetch failed:", error.message);
@@ -1604,7 +1611,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
             modules: modulesToStore,
             client_slug: clientSlugToStore,
           })
-          .select("*")
+          .select(APP_USERS_PUBLIC_SELECT)
           .single()
           .then(({ data, error }) => {
             if (error) {
@@ -1637,14 +1644,20 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (rest.localePreference !== undefined) dbPatch.locale_preference = rest.localePreference;
         if (rest.modules !== undefined) dbPatch.modules = rest.modules;
         if (passwordUpdate !== undefined && String(passwordUpdate).trim() !== "") {
-          dbPatch.password_hash = hashAppPassword(String(passwordUpdate).trim());
+          void fetch("/api/auth/password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: id, password: String(passwordUpdate).trim() }),
+          }).then((res) => {
+            if (!res.ok) console.error("[auth] password update failed");
+          });
         }
         if (Object.keys(dbPatch).length === 0) return;
         void supabase
           .from("app_users")
           .update(dbPatch)
           .eq("id", id)
-          .select("*")
+          .select(APP_USERS_PUBLIC_SELECT)
           .single()
           .then(({ data, error }) => {
             if (error) {
@@ -2057,20 +2070,24 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
             logo_light_url: logoLightUrl ?? null,
             hero_image_url: heroUrl ?? null,
             api_config: apiConfigToDb(apisConfig),
-            api_credentials: clientApiCredentialsToDb(apiCredentials ?? { ...EMPTY_CLIENT_API_CREDENTIALS }),
-            crm_integration: clientCrmIntegrationToDb(crmIntegration ?? { ...EMPTY_CLIENT_CRM_INTEGRATION }),
             whatsapp_config: clientWhatsAppConfigToDb(whatsappConfig ?? { ...EMPTY_CLIENT_WHATSAPP_CONFIG }),
             dashboard_cards: clientDashboardCardsToDb(dashboardCards ?? { ...DEFAULT_CLIENT_DASHBOARD_CARDS }),
             enabled_modules:
               enabledModules && enabledModules.length > 0 ? enabledModules : null,
           })
-          .select("*")
+          .select(CLIENTS_PUBLIC_SELECT)
           .single();
         if (error) {
           console.error("[supabase] clients insert failed:", error.message);
           return { ok: false, error: error.message };
         }
         const client = clientFromRow((inserted as Record<string, unknown>) ?? {});
+        const secretsResult = await persistClientSecrets(client.id, apiCredentials, crmIntegration);
+        if (!secretsResult.ok) {
+          return { ok: false, error: secretsResult.error };
+        }
+        if (apiCredentials) client.apiCredentials = apiCredentials;
+        if (crmIntegration) client.crmIntegration = crmIntegration;
         setClients((prev) => [...prev, client].sort((a, b) => a.name.localeCompare(b.name)));
 
         const projectId = crypto.randomUUID();
@@ -2138,12 +2155,6 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           dbPatch.api_config = apiConfigToDb(updates.apis);
           dbPatch.api_enabled = apisConfigHasAnyEnabled(updates.apis);
         }
-        if (updates.apiCredentials !== undefined) {
-          dbPatch.api_credentials = clientApiCredentialsToDb(updates.apiCredentials);
-        }
-        if (updates.crmIntegration !== undefined) {
-          dbPatch.crm_integration = clientCrmIntegrationToDb(updates.crmIntegration);
-        }
         if (updates.whatsappConfig !== undefined) {
           dbPatch.whatsapp_config = clientWhatsAppConfigToDb(updates.whatsappConfig);
         }
@@ -2157,22 +2168,43 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           dbPatch.enabled_modules =
             updates.enabledModules && updates.enabledModules.length > 0 ? updates.enabledModules : null;
         }
-        if (Object.keys(dbPatch).length === 0) return { ok: true };
-        const { data, error } = await supabase.from("clients").update(dbPatch).eq("id", id).select("*").single();
-        if (error) {
-          console.error("[supabase] clients update failed:", error.message);
-          if (error.message.includes("dashboard_cards")) {
-            return {
-              ok: false,
-              error:
-                "Client dashboard cards migration required. Run supabase/client-dashboard-cards.sql in Supabase SQL Editor.",
-            };
+        if (Object.keys(dbPatch).length > 0) {
+          const { data, error } = await supabase
+            .from("clients")
+            .update(dbPatch)
+            .eq("id", id)
+            .select(CLIENTS_PUBLIC_SELECT)
+            .single();
+          if (error) {
+            console.error("[supabase] clients update failed:", error.message);
+            if (error.message.includes("dashboard_cards")) {
+              return {
+                ok: false,
+                error:
+                  "Client dashboard cards migration required. Run supabase/client-dashboard-cards.sql in Supabase SQL Editor.",
+              };
+            }
+            return { ok: false, error: error.message };
           }
-          return { ok: false, error: error.message };
+          if (data) {
+            const next = clientFromRow(data as Record<string, unknown>);
+            setClients((prev) => prev.map((c) => (c.id === id ? next : c)).sort((a, b) => a.name.localeCompare(b.name)));
+          }
         }
-        if (data) {
-          const next = clientFromRow(data as Record<string, unknown>);
-          setClients((prev) => prev.map((c) => (c.id === id ? next : c)).sort((a, b) => a.name.localeCompare(b.name)));
+        const secretsResult = await persistClientSecrets(id, updates.apiCredentials, updates.crmIntegration);
+        if (!secretsResult.ok) return { ok: false, error: secretsResult.error };
+        if (updates.apiCredentials !== undefined || updates.crmIntegration !== undefined) {
+          setClients((prev) =>
+            prev.map((c) =>
+              c.id === id
+                ? {
+                    ...c,
+                    apiCredentials: updates.apiCredentials ?? c.apiCredentials,
+                    crmIntegration: updates.crmIntegration ?? c.crmIntegration,
+                  }
+                : c,
+            ),
+          );
         }
         return { ok: true };
       },

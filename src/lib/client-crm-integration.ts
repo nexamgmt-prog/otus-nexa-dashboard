@@ -126,17 +126,15 @@ export function textToOrigins(text: string): string[] {
 export function buildCrmFormSnippet(opts: {
   endpoint: string;
   clientSlug: string;
-  ingestSecret: string;
   defaultSource?: string;
 }): string {
-  const { endpoint, clientSlug, ingestSecret, defaultSource = "Website" } = opts;
+  const { endpoint, clientSlug, defaultSource = "Website" } = opts;
   return `<!-- Nexa CRM — Webflow: Project Settings → Custom Code → Footer -->
 <script>
 (function () {
   var NEXA_CRM = {
     endpoint: ${JSON.stringify(endpoint)},
     clientSlug: ${JSON.stringify(clientSlug)},
-    ingestSecret: ${JSON.stringify(ingestSecret)},
   };
 
   function pickField(fd, form, keys, dataNames) {
@@ -207,7 +205,6 @@ export function buildCrmFormSnippet(opts: {
       headers: {
         "Content-Type": "application/json",
         "X-Client-Slug": NEXA_CRM.clientSlug,
-        "X-Ingest-Secret": NEXA_CRM.ingestSecret,
       },
       body: JSON.stringify(payload),
     })

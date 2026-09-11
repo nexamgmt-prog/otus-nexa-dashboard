@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { instagramConfigured, metaFromRequest } from "@/lib/server/meta-from-request";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
  * Returns 12 calendar months (oldest → newest); all months 0 except the current month.
  */
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   const nowEmpty = new Date();
   const emptyMonths: { label: string; value: number }[] = [];
   for (let back = 11; back >= 0; back--) {

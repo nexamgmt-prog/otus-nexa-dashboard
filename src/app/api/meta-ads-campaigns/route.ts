@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 import { metaFromRequest } from "@/lib/server/meta-from-request";
 
 function normalizeAdAccountId(raw: string): string {
@@ -8,6 +9,8 @@ function normalizeAdAccountId(raw: string): string {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   try {
     const meta = await metaFromRequest(request);
     const ACCESS_TOKEN = meta.accessToken;

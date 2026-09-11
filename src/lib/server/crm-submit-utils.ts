@@ -31,13 +31,24 @@ export function normalizeOrigin(origin: string | null): string | null {
 
 export function isOriginAllowed(origin: string | null, integration: ClientCrmIntegration): boolean {
   const allowed = integration.allowedOrigins.map((o) => normalizeOrigin(o) ?? o.trim()).filter(Boolean);
-  if (allowed.length === 0) return true;
+  if (allowed.length === 0) return false;
   const reqOrigin = normalizeOrigin(origin);
   if (!reqOrigin) return false;
   return allowed.some((a) => {
     const norm = normalizeOrigin(a) ?? a;
     return norm === reqOrigin;
   });
+}
+
+/** Existing backends that send the integration key stay authorized without Origin. */
+export function isCrmSubmitAuthorized(
+  ingestSecret: string,
+  origin: string | null,
+  integration: ClientCrmIntegration,
+): boolean {
+  const expectedSecret = integration.ingestSecret.trim();
+  if (expectedSecret && ingestSecret === expectedSecret) return true;
+  return isOriginAllowed(origin, integration);
 }
 
 export function corsHeaders(origin: string | null, integration: ClientCrmIntegration): HeadersInit {

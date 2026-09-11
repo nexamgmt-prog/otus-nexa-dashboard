@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPersistedUser(null);
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
+    void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
   }, []);
 
   const value = useMemo<AuthContextValue>(

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 import { metaFromRequest } from "@/lib/server/meta-from-request";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ type MetaMonthlySpendRow = { date_start: string; spend: number };
  * Used by Strategy "Monthly budget spend" so bars match Meta, not manual marketing_projects.budget_used.
  */
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   const meta = await metaFromRequest(request);
   const ACCESS_TOKEN = meta.accessToken;
   const AD_ACCOUNT_ID_RAW = meta.adAccountId;

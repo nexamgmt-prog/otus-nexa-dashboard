@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 import { metaFromRequest } from "@/lib/server/meta-from-request";
 
 function normalizeAdAccountId(raw: string): string {
@@ -199,6 +200,8 @@ function mapAdsToCreatives(ads: GraphAd[]) {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   const meta = await metaFromRequest(request);
   const ACCESS_TOKEN = meta.accessToken;
   const AD_ACCOUNT_ID = normalizeAdAccountId(meta.adAccountId);

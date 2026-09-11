@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 import { metaFromRequest } from "@/lib/server/meta-from-request";
 
 function normalizeAdAccountId(raw: string): string {
@@ -38,6 +39,8 @@ function parseCustomSinceUntil(searchParams: URLSearchParams): { sinceYmd: strin
 }
 
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const datePreset = searchParams.get("date_preset") ?? "last_30d";
   const customRange = parseCustomSinceUntil(searchParams);

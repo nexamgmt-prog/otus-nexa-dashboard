@@ -20,6 +20,7 @@
     "chat:migrate": "tsx scripts/apply-team-chat-migration.ts",
     "clients:migrate:dashboard-cards": "tsx scripts/apply-client-dashboard-cards-migration.ts",
     "accounts:migrate": "tsx scripts/apply-accounts-foundation-migration.ts",
+    "security:lock-columns": "tsx scripts/apply-lock-sensitive-columns-migration.ts",
     "projects:migrate:board-statuses": "tsx scripts/apply-project-board-statuses-migration.ts",
     "portfolio:migrate": "tsx scripts/apply-portfolio-migration.ts"
   },

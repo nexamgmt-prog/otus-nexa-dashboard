@@ -653,6 +653,20 @@ export function normalizeServiceProduct(raw: string | null | undefined): string 
   return formatCrmServiceProductLabel(raw);
 }
 
+export function leadOfferingNames(lead: Pick<CrmLead, "offering_items" | "service_product">): string[] {
+  if (lead.offering_items.length > 0) {
+    return lead.offering_items.map((item) => item.name);
+  }
+  return [lead.service_product];
+}
+
+export function leadHasServiceProduct(
+  lead: Pick<CrmLead, "offering_items" | "service_product">,
+  label: string,
+): boolean {
+  return leadOfferingNames(lead).some((raw) => normalizeServiceProduct(raw) === label);
+}
+
 export function normalizeCrmServiceProductSelect(raw: string | null | undefined): string {
   return normalizeServiceProduct(raw);
 }

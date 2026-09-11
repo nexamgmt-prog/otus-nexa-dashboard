@@ -37,6 +37,7 @@ export function CrmDashboardModule() {
   const canFilterByOwner = canViewAllCrmLeads(currentUser);
 
   const {
+    leads,
     loading,
     error,
     allLeadsCount,
@@ -197,10 +198,12 @@ export function CrmDashboardModule() {
         </div>
         <div className="h-full xl:col-span-4">
           <CrmDashboardServiceProducts
+            leads={leads}
             serviceProductMap={serviceProductMap}
             serviceProductLabels={serviceProductLabels}
             serviceProductTotal={serviceProductTotal}
             loading={loading}
+            language={language}
             lt={lt}
           />
         </div>

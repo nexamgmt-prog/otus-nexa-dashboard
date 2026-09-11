@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isGa4ConfiguredForClient, resolveGa4PropertyId } from "@/lib/client-api-credentials";
 import { loadClientApiCredentialsFromRequest } from "@/lib/server/load-client-api-credentials";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 import {
   fetchGa4DashboardSnapshot,
   fetchGa4DashboardSnapshotCustom,
@@ -20,6 +21,8 @@ function unixPairToUtcYmd(sinceSec: number, untilSec: number): { startYmd: strin
 }
 
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const rawS = searchParams.get("since");
   const rawU = searchParams.get("until");

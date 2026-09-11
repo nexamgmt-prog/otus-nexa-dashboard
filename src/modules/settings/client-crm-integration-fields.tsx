@@ -78,10 +78,9 @@ export function ClientCrmIntegrationFields({ value, onChange, clientSlug, lt }: 
       buildCrmFormSnippet({
         endpoint,
         clientSlug: clientSlug.trim() || "your-client-slug",
-        ingestSecret: value.ingestSecret.trim() || "GENERATE_SECRET_IN_PANEL",
         defaultSource: value.defaultSource.trim() || "Website",
       }),
-    [endpoint, clientSlug, value.ingestSecret, value.defaultSource],
+    [endpoint, clientSlug, value.defaultSource],
   );
 
   const copySnippet = async () => {
@@ -145,7 +144,7 @@ export function ClientCrmIntegrationFields({ value, onChange, clientSlug, lt }: 
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--muted)]">{lt("Ingest secret")}</label>
+        <label className="mb-1 block text-xs text-[var(--muted)]">{lt("Integration key (backends only)")}</label>
         <div className="flex gap-2">
           <input
             type={showSecrets ? "text" : "password"}
@@ -162,6 +161,9 @@ export function ClientCrmIntegrationFields({ value, onChange, clientSlug, lt }: 
             {lt("Generate")}
           </button>
         </div>
+        <p className="mt-1 text-[11px] font-light text-[var(--muted)]">
+          {lt("Give this key only for an official backend integration. Never put it on the website or in the snippet.")}
+        </p>
         <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-[var(--muted)]">
           <input
             type="checkbox"
@@ -203,7 +205,16 @@ export function ClientCrmIntegrationFields({ value, onChange, clientSlug, lt }: 
         />
         {value.provider === "nexa" ? (
           <p className="mt-1 text-[11px] font-light text-[var(--muted)]">
-            {lt("Webflow: Project Settings → Custom Code → Footer — paste the snippet below. Include both .webflow.io and your custom domain.")}
+            {lt("Required for the website snippet. Include both .webflow.io and the custom domain. The snippet has no API key.")}
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] font-light text-[var(--muted)]">
+            {lt("Required for the website snippet. The snippet has no API key.")}
+          </p>
+        )}
+        {value.allowedOrigins.length === 0 ? (
+          <p className="mt-1 text-[11px] text-amber-200/90">
+            {lt("Add at least one allowed origin or website forms without an integration key will be rejected.")}
           </p>
         ) : null}
       </div>

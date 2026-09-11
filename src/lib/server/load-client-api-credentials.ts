@@ -1,5 +1,5 @@
 import { parseClientApiCredentials } from "@/lib/client-api-credentials";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import type { ClientApiCredentials } from "@/types";
 
 const cache = new Map<string, { creds: ClientApiCredentials; at: number }>();
@@ -20,7 +20,7 @@ export async function loadClientApiCredentials(clientSlug: string | null): Promi
   const hit = cache.get(slug);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.creds;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseAdmin()
     .from("clients")
     .select("api_credentials")
     .eq("slug", slug)

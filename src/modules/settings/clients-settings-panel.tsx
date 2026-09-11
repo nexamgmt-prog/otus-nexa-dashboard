@@ -241,6 +241,21 @@ export function ClientsSettingsPanel({ onAddUserForClient }: ClientsSettingsPane
       enabledModules: client.enabledModules ? [...client.enabledModules] : [],
     });
     setSaveError("");
+    void fetch(`/api/clients/${client.id}/secrets`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { apiCredentials?: ClientApiCredentials; crmIntegration?: ClientCrmIntegration } | null) => {
+        if (!data) return;
+        setEditForm((prev) =>
+          prev
+            ? {
+                ...prev,
+                apiCredentials: data.apiCredentials ?? prev.apiCredentials,
+                crmIntegration: data.crmIntegration ?? prev.crmIntegration,
+              }
+            : prev,
+        );
+      })
+      .catch(() => undefined);
   };
 
   const saveEdit = async () => {

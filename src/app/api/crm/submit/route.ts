@@ -5,7 +5,7 @@ import { loadClientCrmIntegration } from "@/lib/server/load-client-crm-integrati
 import {
   checkRateLimit,
   corsHeaders,
-  isOriginAllowed,
+  isCrmSubmitAuthorized,
   parseLeadBody,
   verifyTurnstile,
 } from "@/lib/server/crm-submit-utils";
@@ -56,13 +56,11 @@ export async function POST(request: Request) {
     });
   }
 
-  const expectedSecret = integration.ingestSecret.trim();
-  if (!expectedSecret || ingestSecret !== expectedSecret) {
-    return NextResponse.json({ ok: false, error: "Invalid ingest secret." }, { status: 401, headers: cors });
-  }
-
-  if (!isOriginAllowed(origin, integration)) {
-    return NextResponse.json({ ok: false, error: "Origin not allowed." }, { status: 403, headers: cors });
+  if (!isCrmSubmitAuthorized(ingestSecret, origin, integration)) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized. Use a valid integration key or submit from an allowed website origin." },
+      { status: 401, headers: cors },
+    );
   }
 
   const ip = clientIp(request);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeAppLanguage, type AppLanguage } from "@/lib/locale-types";
+import { requireApiUser } from "@/lib/server/require-api-user";
 import { translateContent } from "@/lib/server/translate-content";
 
 export const runtime = "nodejs";
@@ -11,6 +12,9 @@ type Body = {
 };
 
 export async function POST(req: Request) {
+  const auth = await requireApiUser(req);
+  if (!auth.ok) return auth.response;
+
   let body: Body;
   try {
     body = (await req.json()) as Body;

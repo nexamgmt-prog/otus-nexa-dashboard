@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { instagramConfigured, metaFromRequest } from "@/lib/server/meta-from-request";
+import { requireDashboardApi } from "@/lib/server/require-api-user";
 
 type MediaNode = {
   id?: string;
@@ -13,6 +14,8 @@ type MediaNode = {
 };
 
 export async function GET(request: Request) {
+  const auth = await requireDashboardApi(request);
+  if (!auth.ok) return auth.response;
   const meta = await metaFromRequest(request);
   if (!instagramConfigured(meta)) {
     return NextResponse.json(

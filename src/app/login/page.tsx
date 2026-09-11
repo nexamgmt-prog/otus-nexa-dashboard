@@ -11,6 +11,7 @@ import { parseHeroClocks } from "@/lib/hero-clocks";
 import { resolveDefaultLandingPathForUser } from "@/lib/default-landing-path";
 import { LoginEntrance } from "@/components/login/login-entrance";
 import { supabase } from "@/lib/supabase";
+import { APP_USERS_PUBLIC_SELECT } from "@/lib/public-selects";
 
 const LOGIN_BACKGROUND_SRC = "/Biotecc%20-%202026-159.jpg";
 
@@ -88,10 +89,6 @@ const LOGIN_SEED: Array<{
 
 const inputClassName =
   "w-full rounded-[6px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] px-3 py-3 text-[0.9rem] font-light text-white placeholder:text-[rgba(255,255,255,0.35)] focus:border-[rgba(255,69,0,0.5)] focus:outline-none";
-
-function hashPassword(password: string): string {
-  return btoa(unescape(encodeURIComponent(password)));
-}
 
 function normalizeUserCompany(value: unknown): UserCompany {
   const s = String(value ?? "").toLowerCase().trim();
@@ -197,7 +194,7 @@ export default function LoginPage() {
     if (!isReady || !sessionUserId) return;
     let cancelled = false;
     void (async () => {
-      const { data, error } = await supabase.from("app_users").select("*").eq("id", sessionUserId).maybeSingle();
+      const { data, error } = await supabase.from("app_users").select(APP_USERS_PUBLIC_SELECT).eq("id", sessionUserId).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
         logout();
@@ -237,58 +234,35 @@ export default function LoginPage() {
     }
 
     setBusy(true);
-    const { data: byEmail, error: emailErr } = await supabase.from("app_users").select("*").ilike("email", trimmed);
-    if (emailErr) {
-      console.error("[login] app_users email lookup failed:", emailErr.message);
-      setInlineError("No account found with this email");
-      setBusy(false);
-      return;
-    }
-    const emailList = (byEmail as Array<Record<string, unknown>> | null) ?? [];
-    let user: Record<string, unknown> | undefined = emailList[0];
-    if (!user) {
-      const { data: byName, error: nameErr } = await supabase.from("app_users").select("*").ilike("name", trimmed);
-      if (nameErr) {
-        console.error("[login] app_users name lookup failed:", nameErr.message);
-        setInlineError("No account found with this email");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: trimmed, password }),
+      });
+      const data = (await res.json()) as { ok?: boolean; needsPassword?: boolean; user?: AppUser; error?: string };
+      if (data.needsPassword) {
+        setFirstAccessUser({
+          id: "",
+          name: trimmed,
+          email: trimmed,
+          role: "manager",
+          company: null,
+          modules: null,
+          password_hash: null,
+        });
         setBusy(false);
         return;
       }
-      const nameList = (byName as Array<Record<string, unknown>> | null) ?? [];
-      user = nameList[0];
+      if (!res.ok || !data.ok || !data.user) {
+        setInlineError(data.error ?? "Incorrect password");
+        setBusy(false);
+        return;
+      }
+      finishLogin(data.user);
+    } catch {
+      setInlineError("Could not sign in.");
     }
-    if (!user) {
-      setInlineError("No account found with this email");
-      setBusy(false);
-      return;
-    }
-
-    const row = mapRecordToRow(user);
-
-    if (!row.password_hash) {
-      setFirstAccessUser(row);
-      setBusy(false);
-      return;
-    }
-
-    if (!password.trim()) {
-      setInlineError("Incorrect password");
-      setBusy(false);
-      return;
-    }
-
-    const storedHash = String(row.password_hash ?? "").trim();
-    const hash = hashPassword(password);
-    console.log("Stored hash:", storedHash);
-    console.log("Entered hash:", hash);
-    console.log("Match:", hash === storedHash);
-    if (hash !== storedHash) {
-      setInlineError("Incorrect password");
-      setBusy(false);
-      return;
-    }
-
-    finishLogin(rowToAppUser(row));
     setBusy(false);
   };
 
@@ -301,26 +275,23 @@ export default function LoginPage() {
       return;
     }
     setBusy(true);
-    const hash = hashPassword(newPassword);
-    const { data, error } = await supabase.from("app_users").update({ password_hash: hash }).eq("id", firstAccessUser.id).select("*").single();
-    if (error) {
-      console.error("[login] app_users password set failed:", error.message);
+    try {
+      const res = await fetch("/api/auth/first-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: identifier.trim(), password: newPassword }),
+      });
+      const data = (await res.json()) as { ok?: boolean; user?: AppUser; error?: string };
+      if (!res.ok || !data.ok || !data.user) {
+        setInlineError(data.error ?? "Could not save password.");
+        setBusy(false);
+        return;
+      }
+      resetFirstAccess();
+      finishLogin(data.user);
+    } catch {
       setInlineError("Could not save password.");
-      setBusy(false);
-      return;
     }
-    const r = (data as Record<string, unknown>) ?? {};
-    const updated: AppUserDbRow = {
-      id: String(r.id ?? firstAccessUser.id),
-      name: String(r.name ?? firstAccessUser.name),
-      email: r.email != null ? String(r.email) : firstAccessUser.email,
-      role: String(r.role ?? firstAccessUser.role),
-      company: r.company != null ? String(r.company) : firstAccessUser.company,
-      modules: Array.isArray(r.modules) ? r.modules.map(String) : firstAccessUser.modules,
-      password_hash: r.password_hash != null ? String(r.password_hash) : hash,
-    };
-    resetFirstAccess();
-    finishLogin(rowToAppUser(updated));
     setBusy(false);
   };
 
