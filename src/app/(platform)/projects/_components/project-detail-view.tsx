@@ -49,6 +49,7 @@ import { MentionTextarea } from "@/components/ui/mention-textarea";
 import { LocalizedContent } from "@/components/ui/localized-content";
 import type { AppLanguage } from "@/lib/locale-types";
 import { supabase } from "@/lib/supabase";
+import { uniqueStorageFileName } from "@/lib/storage-object-key";
 import { getTaskHighlightCoverUrl } from "@/lib/task-highlight-cover";
 import { fetchPublishedAtByTaskIds } from "@/lib/task-published-at-from-scheduled-posts";
 import { OwnerAvatars } from "./owner-avatars";
@@ -1106,13 +1107,13 @@ export function ProjectDetailView({ project }: { project: Project }) {
     setTaskAttachmentError("");
     try {
       for (const file of Array.from(files)) {
-        const fileName = `${taskId}/${Date.now()}-${file.name}`;
+        const fileName = `${taskId}/${uniqueStorageFileName(file.name, file.type)}`;
         const { data, error } = await supabase.storage
           .from("task-attachments")
           .upload(fileName, file, { cacheControl: "3600", upsert: false });
         if (error || !data?.path) {
           console.error("[supabase] task attachment upload failed:", error?.message ?? "No path");
-          setTaskAttachmentError(error?.message || "Upload failed.");
+          setTaskAttachmentError(lt("Upload failed. Try again."));
           continue;
         }
         const { data: urlData } = supabase.storage.from("task-attachments").getPublicUrl(data.path);
@@ -1180,8 +1181,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
     setCoverUploadLoading(true);
     setCoverUploadError("");
 
-    const fileExt = file.name.split(".").pop() || "jpg";
-    const fileName = `${taskId}-${Date.now()}.${fileExt}`;
+    const fileName = `${taskId}-${uniqueStorageFileName(file.name, file.type)}`;
     const { data, error } = await supabase.storage.from("task-covers").upload(fileName, file, {
       cacheControl: "3600",
       upsert: true,
@@ -1558,7 +1558,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
       }
 
       for (const file of editReviewNewFiles) {
-        const path = `${editingReviewId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
+        const path = `${editingReviewId}/${uniqueStorageFileName(file.name, file.type)}`;
         const { data: upData, error: upErr } = await supabase.storage.from("task-reviews").upload(path, file, {
           cacheControl: "3600",
           upsert: false,
@@ -1651,7 +1651,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
       }
       const reviewId = String((inserted as Record<string, unknown>).id ?? "");
       for (const file of reviewDraftFiles) {
-        const path = `${reviewId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
+        const path = `${reviewId}/${uniqueStorageFileName(file.name, file.type)}`;
         const { data: upData, error: upErr } = await supabase.storage.from("task-reviews").upload(path, file, {
           cacheControl: "3600",
           upsert: false,
