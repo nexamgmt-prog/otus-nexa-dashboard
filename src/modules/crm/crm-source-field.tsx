@@ -49,9 +49,14 @@ export function CrmSourceField({
   const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const queryRef = useRef(query);
+  const dropdownItemsRef = useRef<Array<{ type: "option" | "create"; value: string }>>([]);
+  const activeIndexRef = useRef(0);
+  const canCreateRef = useRef(false);
   const menuId = useId();
 
   const queryTrimmed = query.trim();
+  queryRef.current = query;
 
   const filteredOptions = useMemo(() => {
     const q = queryTrimmed.toLowerCase();
@@ -82,6 +87,10 @@ export function CrmSourceField({
     return items;
   }, [filteredOptions, canCreate, queryTrimmed, sourceOptions, value]);
 
+  dropdownItemsRef.current = dropdownItems;
+  activeIndexRef.current = activeIndex;
+  canCreateRef.current = canCreate;
+
   const updateMenuRect = () => {
     const el = inputRef.current;
     if (!el) return;
@@ -97,6 +106,32 @@ export function CrmSourceField({
     setActiveIndex(0);
   }, [query, open]);
 
+  const commit = async (next: string, isNew: boolean) => {
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    onChange(trimmed);
+    if (isNew) await onCreateOption?.(trimmed);
+    setOpen(false);
+    setQuery("");
+    inputRef.current?.blur();
+  };
+
+  const commitPendingQuery = () => {
+    const pending = queryRef.current.trim();
+    if (!pending) {
+      setOpen(false);
+      setQuery("");
+      return;
+    }
+    const items = dropdownItemsRef.current;
+    const item = items[activeIndexRef.current] ?? items[0];
+    if (item) {
+      void commit(item.value, item.type === "create");
+      return;
+    }
+    void commit(pending, canCreateRef.current);
+  };
+
   useEffect(() => {
     if (!open) return;
     updateMenuRect();
@@ -105,8 +140,7 @@ export function CrmSourceField({
       if (!rootRef.current?.contains(event.target as Node)) {
         const menu = document.getElementById(menuId);
         if (menu?.contains(event.target as Node)) return;
-        setOpen(false);
-        setQuery("");
+        commitPendingQuery();
       }
     };
 
@@ -122,16 +156,6 @@ export function CrmSourceField({
     };
   }, [open, menuId]);
 
-  const commit = async (next: string, isNew: boolean) => {
-    const trimmed = next.trim();
-    if (!trimmed) return;
-    onChange(trimmed);
-    if (isNew) await onCreateOption?.(trimmed);
-    setOpen(false);
-    setQuery("");
-    inputRef.current?.blur();
-  };
-
   const handleDelete = async (option: string) => {
     if (!onDeleteOption) return;
     const label = formatOptionLabel(option, language);
@@ -142,11 +166,13 @@ export function CrmSourceField({
   };
 
   const openField = () => {
+    const current = value ? formatOptionLabel(value, language) : "";
     setOpen(true);
-    setQuery("");
+    setQuery(current);
     requestAnimationFrame(() => {
       updateMenuRect();
       inputRef.current?.focus();
+      if (current) inputRef.current?.select();
     });
   };
 
@@ -233,6 +259,15 @@ export function CrmSourceField({
           if (!open) openField();
         }}
         onChange={(event) => setQuery(event.target.value)}
+        onBlur={() => {
+          if (!open) return;
+          window.setTimeout(() => {
+            if (!open) return;
+            const menu = document.getElementById(menuId);
+            if (menu && document.activeElement && menu.contains(document.activeElement)) return;
+            commitPendingQuery();
+          }, 0);
+        }}
         onKeyDown={(event) => {
           if (!open) return;
           if (event.key === "Escape") {
@@ -252,6 +287,10 @@ export function CrmSourceField({
             event.preventDefault();
             if (!dropdownItems.length) return;
             setActiveIndex((prev) => (prev - 1 + dropdownItems.length) % dropdownItems.length);
+            return;
+          }
+          if (event.key === "Tab") {
+            commitPendingQuery();
             return;
           }
           if (event.key === "Enter") {

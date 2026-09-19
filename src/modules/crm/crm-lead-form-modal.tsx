@@ -208,6 +208,8 @@ export function CrmLeadFormModal({
   const [quoteUploading, setQuoteUploading] = useState(false);
   const quoteInputRef = useRef<HTMLInputElement>(null);
   const contactSearchSeq = useRef(0);
+  /** Prevents the hydrate effect from wiping in-progress edits when lead/funnel/options identities change. */
+  const hydrateKeyRef = useRef<string | null>(null);
   /** Only close when pointer down + click both start on the backdrop (not text-drag out of the form). */
   const backdropDismissRef = useRef(false);
   const [appointments, setAppointments] = useState<CrmAppointment[]>([]);
@@ -254,7 +256,16 @@ export function CrmLeadFormModal({
   }, [funnel, lead, language]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hydrateKeyRef.current = null;
+      return;
+    }
+    const hydrateKey =
+      mode === "create"
+        ? `create:${funnel.slug}:${initialStage ?? ""}`
+        : `edit:${lead?.id ?? ""}`;
+    if (hydrateKeyRef.current === hydrateKey) return;
+    hydrateKeyRef.current = hydrateKey;
     if (mode === "create") {
       setName("");
       setCompany("");
@@ -522,14 +533,11 @@ export function CrmLeadFormModal({
           ])
         : offeringKind === "product"
           ? crmOfferingFieldsFromItems(
-              productLines.map((line) => {
-                const parsed = primaryParsedCrmProduct(line.name);
-                return {
-                  name: normalizeCrmServiceProductSelect(parsed.name || line.name),
-                  quantity: parseCrmQuantity(line.quantityStr),
-                  quantity_unit: normalizeCrmQuantityUnitSelect(line.quantityUnit) || null,
-                };
-              }),
+              productLines.map((line) => ({
+                name: normalizeCrmServiceProductSelect(line.name),
+                quantity: parseCrmQuantity(line.quantityStr),
+                quantity_unit: normalizeCrmQuantityUnitSelect(line.quantityUnit) || null,
+              })),
             )
           : crmOfferingFieldsFromItems([]);
     const serviceProductTrimmed = offeringFields.service_product;
@@ -561,8 +569,7 @@ export function CrmLeadFormModal({
           return;
         }
         for (const line of productLines) {
-          const parsed = primaryParsedCrmProduct(line.name);
-          const lineName = normalizeCrmServiceProductSelect(parsed.name || line.name);
+          const lineName = normalizeCrmServiceProductSelect(line.name);
           const lineQty = parseCrmQuantity(line.quantityStr);
           const hasPartial =
             Boolean(lineName) ||
@@ -1306,31 +1313,32 @@ export function CrmLeadFormModal({
                             value={line.name}
                             onChange={(value) => {
                               if (offeringError) setOfferingError("");
-                              const lines = parseCrmServiceProductBlob(value);
-                              if (
-                                lines.length > 1 ||
-                                (lines[0] && (lines[0].quantity != null || lines[0].unit))
-                              ) {
-                                const primary = lines[0]!;
-                                setProductLines((prev) =>
-                                  prev.map((row, i) =>
-                                    i === index
-                                      ? {
-                                          ...row,
-                                          name: primary.name,
-                                          quantityStr:
-                                            primary.quantity != null
-                                              ? String(Math.trunc(primary.quantity))
-                                              : row.quantityStr,
-                                          quantityUnit: primary.unit || row.quantityUnit,
-                                        }
-                                      : row,
-                                  ),
-                                );
-                                for (const parsed of lines) {
-                                  if (parsed.name) void rememberServiceProduct(parsed.name);
+                              // Only explode pasted multi-product blobs. A catalog pick like
+                              // "Whey 1kg" must keep its name — qty/unit live in sibling fields.
+                              if (value.includes(";")) {
+                                const lines = parseCrmServiceProductBlob(value);
+                                if (lines.length > 0) {
+                                  const primary = lines[0]!;
+                                  setProductLines((prev) =>
+                                    prev.map((row, i) =>
+                                      i === index
+                                        ? {
+                                            ...row,
+                                            name: primary.name || value,
+                                            quantityStr:
+                                              primary.quantity != null
+                                                ? String(Math.trunc(primary.quantity))
+                                                : row.quantityStr,
+                                            quantityUnit: primary.unit || row.quantityUnit,
+                                          }
+                                        : row,
+                                    ),
+                                  );
+                                  for (const parsed of lines) {
+                                    if (parsed.name) void rememberServiceProduct(parsed.name);
+                                  }
+                                  return;
                                 }
-                                return;
                               }
                               setProductLines((prev) =>
                                 prev.map((row, i) => (i === index ? { ...row, name: value } : row)),
@@ -1340,29 +1348,13 @@ export function CrmLeadFormModal({
                             language={language}
                             hint={lt("Select or type a new product")}
                             onCreateOption={async (name) => {
-                              const lines = parseCrmServiceProductBlob(name);
-                              const primary = lines[0] ?? primaryParsedCrmProduct(name);
-                              const formatted = normalizeCrmServiceProductSelect(
-                                primary.name || name,
-                              );
+                              const formatted = normalizeCrmServiceProductSelect(name) || name;
                               setProductLines((prev) =>
                                 prev.map((row, i) =>
-                                  i === index
-                                    ? {
-                                        ...row,
-                                        name: formatted,
-                                        quantityStr:
-                                          primary.quantity != null
-                                            ? String(Math.trunc(primary.quantity))
-                                            : row.quantityStr,
-                                        quantityUnit: primary.unit || row.quantityUnit,
-                                      }
-                                    : row,
+                                  i === index ? { ...row, name: formatted } : row,
                                 ),
                               );
-                              for (const parsed of lines.length ? lines : [primary]) {
-                                if (parsed.name) await rememberServiceProduct(parsed.name);
-                              }
+                              if (formatted) await rememberServiceProduct(formatted);
                             }}
                             formatOptionLabel={(value) =>
                               normalizeCrmServiceProductSelect(value) || value
@@ -1370,9 +1362,7 @@ export function CrmLeadFormModal({
                             createOptionLabel={(name) =>
                               lt('Add product "{name}"').replace(
                                 "{name}",
-                                normalizeCrmServiceProductSelect(
-                                  primaryParsedCrmProduct(name).name || name,
-                                ) || name,
+                                normalizeCrmServiceProductSelect(name) || name,
                               )
                             }
                             onDeleteOption={async (name) => {
