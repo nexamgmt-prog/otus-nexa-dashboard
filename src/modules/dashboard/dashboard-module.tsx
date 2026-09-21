@@ -1093,7 +1093,10 @@ export function DashboardModule() {
 
         let json: { error?: string; posts?: unknown } = {};
         try {
-          json = (await fetch(apiUrlWithClient("/api/instagram-feed", dataClientSlug)).then((r) => r.json())) as {
+          json = (await fetch(apiUrlWithClient("/api/instagram-feed", dataClientSlug), {
+            credentials: "include",
+            cache: "no-store",
+          }).then((r) => r.json())) as {
             error?: string;
             posts?: unknown;
           };
@@ -1609,10 +1612,11 @@ export function DashboardModule() {
       dataClientSlug,
     );
     const tasks: Array<Promise<Record<string, unknown>>> = [];
-    if (clientApis.metaAds) tasks.push(fetch(metaUrl).then((r) => r.json()));
-    if (wantsIg) tasks.push(fetch(igUrl).then((r) => r.json()));
+    const dashFetch = (url: string) => fetch(url, { credentials: "include", cache: "no-store" }).then((r) => r.json());
+    if (clientApis.metaAds) tasks.push(dashFetch(metaUrl));
+    if (wantsIg) tasks.push(dashFetch(igUrl));
     if (clientApis.metaCreatives)
-      tasks.push(fetch(apiUrlWithClient("/api/meta-creatives", dataClientSlug)).then((r) => r.json()));
+      tasks.push(dashFetch(apiUrlWithClient("/api/meta-creatives", dataClientSlug)));
 
     void Promise.all(tasks).then((results) => {
         if (cancelled) return;
@@ -1730,7 +1734,10 @@ export function DashboardModule() {
     let cancelled = false;
     setIgMonthlyLoading(true);
     setIgMonthlyError(null);
-    void fetch(apiUrlWithClient("/api/instagram-monthly", dataClientSlug))
+    void fetch(apiUrlWithClient("/api/instagram-monthly", dataClientSlug), {
+      credentials: "include",
+      cache: "no-store",
+    })
       .then((r) => r.json())
       .then((monthJson: Record<string, unknown>) => {
         if (cancelled) return;
@@ -3100,7 +3107,9 @@ export function DashboardModule() {
                 </span>
               ) : null}
             </div>
-            <p className="mt-2 text-sm font-light text-[var(--muted)]">{lt("Connect Instagram API to display live feed")}</p>
+            {instagramFeedSource !== "live" ? (
+              <p className="mt-2 text-sm font-light text-[var(--muted)]">{lt("Connect Instagram API to display live feed")}</p>
+            ) : null}
             {instagramFeedSource === "live" ? (
               <p className="mt-1 text-[0.72rem] text-[rgba(255,255,255,0.35)]">
                 {lt("Manual posts are overridden by live API data")}

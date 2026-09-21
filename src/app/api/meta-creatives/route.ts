@@ -202,7 +202,7 @@ function mapAdsToCreatives(ads: GraphAd[]) {
 export async function GET(request: Request) {
   const auth = await requireDashboardApi(request);
   if (!auth.ok) return auth.response;
-  const meta = await metaFromRequest(request);
+  const meta = await metaFromRequest(request, auth.clientSlug);
   const ACCESS_TOKEN = meta.accessToken;
   const AD_ACCOUNT_ID = normalizeAdAccountId(meta.adAccountId);
   if (!meta.configured || !ACCESS_TOKEN) {

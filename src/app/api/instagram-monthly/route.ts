@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     emptyMonths.push({ label: MONTH_SHORT[ref.getUTCMonth()] ?? "—", value: 0 });
   }
 
-  const meta = await metaFromRequest(request);
+  const meta = await metaFromRequest(request, auth.clientSlug);
   if (!instagramConfigured(meta)) {
     console.error("[instagram-monthly] META_ACCESS_TOKEN or META_INSTAGRAM_ID not configured.");
     return NextResponse.json({ months: emptyMonths, source: "api", liveFollowersCount: 0 }, { status: 200 });

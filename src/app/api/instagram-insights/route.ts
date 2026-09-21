@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { instagramConfigured, metaFromRequest } from "@/lib/server/meta-from-request";
 import { requireDashboardApi } from "@/lib/server/require-api-user";
 
-const fetchOpts = { next: { revalidate: 300 } as const };
+export const dynamic = "force-dynamic";
+
+const fetchOpts = { cache: "no-store" as const };
 
 function parseNumber(v: unknown): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -186,10 +188,10 @@ function parseSinceUntilFromRequest(request: Request): { since: number; until: n
 export async function GET(request: Request) {
   const auth = await requireDashboardApi(request);
   if (!auth.ok) return auth.response;
-  const meta = await metaFromRequest(request);
+  const meta = await metaFromRequest(request, auth.clientSlug);
   if (!instagramConfigured(meta)) {
     return NextResponse.json(
-      { error: "Instagram Insights API is not configured (META_ACCESS_TOKEN, META_INSTAGRAM_ID)." },
+      { error: "Instagram Insights API is not configured for this client." },
       { status: 503 },
     );
   }

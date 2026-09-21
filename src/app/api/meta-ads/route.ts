@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   const campaignIdRaw = searchParams.get("campaign_id")?.trim() ?? "";
   const campaignIdFilter = campaignIdRaw && /^[\d]+$/.test(campaignIdRaw) ? campaignIdRaw : "";
 
-  const meta = await metaFromRequest(request);
+  const meta = await metaFromRequest(request, auth.clientSlug);
   const ACCESS_TOKEN = meta.accessToken;
   const AD_ACCOUNT_ID = normalizeAdAccountId(meta.adAccountId);
 

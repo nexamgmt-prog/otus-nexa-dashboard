@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { instagramConfigured, metaFromRequest } from "@/lib/server/meta-from-request";
 import { requireDashboardApi } from "@/lib/server/require-api-user";
 
+export const dynamic = "force-dynamic";
+
 type MediaNode = {
   id?: string;
   media_type?: string;
@@ -16,10 +18,10 @@ type MediaNode = {
 export async function GET(request: Request) {
   const auth = await requireDashboardApi(request);
   if (!auth.ok) return auth.response;
-  const meta = await metaFromRequest(request);
+  const meta = await metaFromRequest(request, auth.clientSlug);
   if (!instagramConfigured(meta)) {
     return NextResponse.json(
-      { error: "Instagram API is not configured (META_ACCESS_TOKEN, META_INSTAGRAM_ID)." },
+      { error: "Instagram API is not configured for this client." },
       { status: 503 },
     );
   }
@@ -32,7 +34,7 @@ export async function GET(request: Request) {
   const url = `https://graph.facebook.com/v19.0/${id}/media?fields=${fields}&limit=12&access_token=${ACCESS_TOKEN}`;
 
   try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, { cache: "no-store" });
     const data = (await res.json()) as {
       data?: MediaNode[];
       error?: { message?: string };

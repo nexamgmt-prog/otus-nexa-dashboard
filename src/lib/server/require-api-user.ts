@@ -38,7 +38,7 @@ export async function requireDashboardApi(
 > {
   const auth = await requireApiUser(request);
   if (!auth.ok) return auth;
-  const clientSlug = clientSlugFromRequest(request);
+  const clientSlug = clientSlugFromRequest(request) || auth.user.clientSlug?.trim() || null;
   if (!sessionCanAccessClient(auth.user, clientSlug)) {
     return { ok: false, response: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
   }
