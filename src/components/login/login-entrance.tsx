@@ -112,7 +112,7 @@ export function LoginEntrance({ isAppReady, isRedirecting, backgroundSrc, childr
         <div className="flex h-[36.8px] items-center justify-center">
           <img
             src={LOGIN_LOGO_SRC}
-            alt="Nexa and Otus logo"
+            alt="Nexa"
             className="h-[36.8px] w-auto max-w-[93.15px] object-contain object-center"
           />
         </div>

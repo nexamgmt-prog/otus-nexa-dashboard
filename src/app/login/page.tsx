@@ -306,7 +306,7 @@ export default function LoginPage() {
           <div className="flex h-[36.8px] items-center justify-center">
             <img
               src="/frame-1.svg"
-              alt="Nexa and Otus logo"
+              alt="Nexa"
               className="h-[36.8px] w-auto max-w-[93.15px] object-contain object-left"
             />
           </div>

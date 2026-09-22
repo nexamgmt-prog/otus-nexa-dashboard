@@ -118,7 +118,7 @@ export function SidebarPanelContent(props: SidebarPanelContentProps) {
         <div className="flex h-[36.8px] min-w-0 items-center justify-start">
           <img
             src="/frame-1.svg"
-            alt="RocketRide logo"
+            alt="Nexa"
             className="sidebar-brand-logo h-[36.8px] w-auto max-w-[87px] object-contain object-left"
           />
         </div>
