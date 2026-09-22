@@ -2753,10 +2753,14 @@ export function ProjectDetailView({ project }: { project: Project }) {
                           >
                             <Download className="h-4 w-4" strokeWidth={1.5} />
                           </button>
-                          {!isRocketRideClient ? (
+                          {!isRocketRideClient && activeTask ? (
                             <button
                               type="button"
-                              onClick={() => void deleteTaskAttachment(activeTask.id, attachment)}
+                              onClick={() => {
+                                const taskId = activeTask?.id;
+                                if (!taskId) return;
+                                void deleteTaskAttachment(taskId, attachment);
+                              }}
                               className="shrink-0 rounded-[6px] p-1.5 text-[rgba(255,255,255,0.45)] transition-colors hover:bg-[rgba(239,68,68,0.12)] hover:text-[#ef4444]"
                               aria-label={lt("Delete attachment")}
                             >
