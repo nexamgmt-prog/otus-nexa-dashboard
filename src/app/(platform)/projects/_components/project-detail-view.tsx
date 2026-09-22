@@ -49,7 +49,7 @@ import { MentionTextarea } from "@/components/ui/mention-textarea";
 import { LocalizedContent } from "@/components/ui/localized-content";
 import type { AppLanguage } from "@/lib/locale-types";
 import { supabase } from "@/lib/supabase";
-import { uniqueStorageFileName } from "@/lib/storage-object-key";
+import { fileContentType, uniqueStorageFileName } from "@/lib/storage-object-key";
 import { getTaskHighlightCoverUrl } from "@/lib/task-highlight-cover";
 import { fetchPublishedAtByTaskIds } from "@/lib/task-published-at-from-scheduled-posts";
 import { OwnerAvatars } from "./owner-avatars";
@@ -498,6 +498,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
   const projectPropsStatusRef = useRef<HTMLDivElement>(null);
   const projectPropsOwnersRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingCreateFiles, setPendingCreateFiles] = useState<File[]>([]);
   const coverImageInputRef = useRef<HTMLInputElement | null>(null);
   /** Avoid closing preview on unrelated rerenders; only reset when task changes. */
   const lastAttachmentTaskIdRef = useRef<string | null>(null);
@@ -598,6 +599,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
     setTaskFormSaving(false);
     setCoverUploadError("");
     setTaskAttachmentError("");
+    setPendingCreateFiles([]);
   };
 
   useEffect(() => {
@@ -1099,58 +1101,71 @@ export function ProjectDetailView({ project }: { project: Project }) {
     setPreviewAttachment((prev) => (prev?.id === attachment.id ? null : prev));
   };
 
+  const uploadTaskAttachmentFile = async (taskId: string, file: File): Promise<string | null> => {
+    const contentType = fileContentType(file);
+    const fileName = `${taskId}/${uniqueStorageFileName(file.name, contentType)}`;
+    const { data, error } = await supabase.storage.from("task-attachments").upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType,
+    });
+    if (error || !data?.path) {
+      console.error("[supabase] task attachment upload failed:", error?.message ?? "No path");
+      return error?.message || lt("Upload failed. Try again.");
+    }
+    const { data: urlData } = supabase.storage.from("task-attachments").getPublicUrl(data.path);
+    const { data: row, error: insertError } = await supabase
+      .from("task_attachments")
+      .insert([
+        {
+          task_id: taskId,
+          name: file.name,
+          url: urlData.publicUrl,
+          type: contentType,
+          size: file.size,
+        },
+      ])
+      .select("*")
+      .single();
+    if (insertError || !row) {
+      console.error("[supabase] task_attachments insert failed:", insertError?.message);
+      await supabase.storage.from("task-attachments").remove([data.path]);
+      return insertError?.message || "Failed to save attachment.";
+    }
+    const att = taskAttachmentFromRow(row as Record<string, unknown>);
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const merged = [...t.attachments, att];
+        updateBoardProjectTask(project.id, taskId, {
+          attachments: merged.map((a) => ({ type: a.type, name: a.name, url: a.url })),
+        });
+        return { ...t, attachments: merged };
+      }),
+    );
+    return null;
+  };
+
   const onPanelFileUpload = async (files: FileList | null) => {
     if (isRocketRideClient) return;
-    if (!files?.length || !activeTask) return;
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (taskFormMode === "create" || !activeTask) {
+      setPendingCreateFiles((prev) => [...prev, ...selected]);
+      setTaskAttachmentError("");
+      return;
+    }
     const taskId = activeTask.id;
     setTaskAttachmentUploading(true);
     setTaskAttachmentError("");
     try {
-      for (const file of Array.from(files)) {
-        const fileName = `${taskId}/${uniqueStorageFileName(file.name, file.type)}`;
-        const { data, error } = await supabase.storage
-          .from("task-attachments")
-          .upload(fileName, file, { cacheControl: "3600", upsert: false });
-        if (error || !data?.path) {
-          console.error("[supabase] task attachment upload failed:", error?.message ?? "No path");
-          setTaskAttachmentError(lt("Upload failed. Try again."));
-          continue;
-        }
-        const { data: urlData } = supabase.storage.from("task-attachments").getPublicUrl(data.path);
-        const { data: row, error: insertError } = await supabase
-          .from("task_attachments")
-          .insert([
-            {
-              task_id: taskId,
-              name: file.name,
-              url: urlData.publicUrl,
-              type: file.type,
-              size: file.size,
-            },
-          ])
-          .select("*")
-          .single();
-        if (insertError || !row) {
-          console.error("[supabase] task_attachments insert failed:", insertError?.message);
-          setTaskAttachmentError(insertError?.message || "Failed to save attachment.");
-          await supabase.storage.from("task-attachments").remove([data.path]);
-          continue;
-        }
-        const att = taskAttachmentFromRow(row as Record<string, unknown>);
-        setTasks((prev) =>
-          prev.map((t) => {
-            if (t.id !== taskId) return t;
-            const merged = [...t.attachments, att];
-            updateBoardProjectTask(project.id, taskId, {
-              attachments: merged.map((a) => ({ type: a.type, name: a.name, url: a.url })),
-            });
-            return { ...t, attachments: merged };
-          }),
-        );
+      for (const file of selected) {
+        const err = await uploadTaskAttachmentFile(taskId, file);
+        if (err) setTaskAttachmentError(err);
       }
     } finally {
       setTaskAttachmentUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -1341,6 +1356,23 @@ export function ProjectDetailView({ project }: { project: Project }) {
       };
       addBoardProjectTask(project.id, boardRow);
       void syncProjectProgressFromLocalTasks(nextTasks);
+      let attachErr: string | null = null;
+      if (pendingCreateFiles.length > 0) {
+        setTaskAttachmentUploading(true);
+        for (const file of pendingCreateFiles) {
+          const err = await uploadTaskAttachmentFile(createdTask.id, file);
+          if (err) attachErr = err;
+        }
+        setTaskAttachmentUploading(false);
+        setPendingCreateFiles([]);
+      }
+      if (attachErr) {
+        populateTaskForm(createdTask);
+        setActiveTaskId(createdTask.id);
+        setTaskFormMode("edit");
+        setTaskAttachmentError(attachErr);
+        return;
+      }
       if (createdStatus === "Published") {
         setPublishedToModal({ taskId: createdTask.id, taskName: createdTask.name });
       }
@@ -1558,10 +1590,11 @@ export function ProjectDetailView({ project }: { project: Project }) {
       }
 
       for (const file of editReviewNewFiles) {
-        const path = `${editingReviewId}/${uniqueStorageFileName(file.name, file.type)}`;
+        const path = `${editingReviewId}/${uniqueStorageFileName(file.name, fileContentType(file))}`;
         const { data: upData, error: upErr } = await supabase.storage.from("task-reviews").upload(path, file, {
           cacheControl: "3600",
           upsert: false,
+          contentType: fileContentType(file),
         });
         if (upErr || !upData?.path) {
           console.error("[supabase] task-reviews upload failed:", upErr?.message ?? "no path");
@@ -1573,7 +1606,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
           review_id: editingReviewId,
           name: file.name,
           url: urlData.publicUrl,
-          type: file.type || "application/octet-stream",
+          type: fileContentType(file),
           size: file.size,
         });
         if (insAttErr) {
@@ -1651,10 +1684,12 @@ export function ProjectDetailView({ project }: { project: Project }) {
       }
       const reviewId = String((inserted as Record<string, unknown>).id ?? "");
       for (const file of reviewDraftFiles) {
-        const path = `${reviewId}/${uniqueStorageFileName(file.name, file.type)}`;
+        const contentType = fileContentType(file);
+        const path = `${reviewId}/${uniqueStorageFileName(file.name, contentType)}`;
         const { data: upData, error: upErr } = await supabase.storage.from("task-reviews").upload(path, file, {
           cacheControl: "3600",
           upsert: false,
+          contentType,
         });
         if (upErr || !upData?.path) {
           console.error("[supabase] task-reviews upload failed:", upErr?.message ?? "no path");
@@ -1666,7 +1701,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
           review_id: reviewId,
           name: file.name,
           url: urlData.publicUrl,
-          type: file.type || "application/octet-stream",
+          type: contentType,
           size: file.size,
         });
         if (attErr) {
@@ -2594,7 +2629,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
                   ) : null}
                 </div>
 
-                {taskFormMode === "edit" && activeTask ? (
+                {taskFormMode === "create" || (taskFormMode === "edit" && activeTask) ? (
                   <>
               <div>
                 <p className="section-title mb-2">{lt("Attachments")}</p>
@@ -2605,6 +2640,7 @@ export function ProjectDetailView({ project }: { project: Project }) {
                       type="file"
                       className="hidden"
                       multiple
+                      accept="application/pdf,.pdf,image/*,video/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
                       onChange={(event) => void onPanelFileUpload(event.target.files)}
                     />
                     <div
@@ -2651,8 +2687,28 @@ export function ProjectDetailView({ project }: { project: Project }) {
                 {taskAttachmentError ? (
                   <p className="mt-2 text-[0.75rem] text-[#ef4444]">{taskAttachmentError}</p>
                 ) : null}
+                {pendingCreateFiles.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {pendingCreateFiles.map((file, idx) => (
+                      <span
+                        key={`${file.name}-${idx}`}
+                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-[var(--border)] bg-[#141414] py-1 pl-2.5 pr-1 text-[11px] font-light text-[rgba(255,255,255,0.85)]"
+                      >
+                        <span className="max-w-[220px] truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingCreateFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="rounded-full p-0.5 text-[rgba(255,255,255,0.45)] hover:bg-[rgba(255,255,255,0.08)] hover:text-white"
+                          aria-label={lt("Remove")}
+                        >
+                          <X className="h-3.5 w-3.5" strokeWidth={2} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-3 space-y-3">
-                  {activeTask.attachments.map((attachment) => {
+                  {(activeTask?.attachments ?? []).map((attachment) => {
                     const Icon = attachmentKind(attachment.type, attachment.name);
                     const pk = attachmentPreviewKind(attachment);
                     const expandHint = lt("Click for full view");
@@ -2714,6 +2770,8 @@ export function ProjectDetailView({ project }: { project: Project }) {
                 </div>
               </div>
 
+              {taskFormMode === "edit" && activeTask ? (
+              <>
               <div className="space-y-2 border-t border-[var(--border)] pt-5">
                 <p className="section-title mb-0">{lt("COVER IMAGE")}</p>
                 {!isRocketRideClient ? (
@@ -3223,6 +3281,8 @@ export function ProjectDetailView({ project }: { project: Project }) {
                     </ul>
                   )}
                 </div>
+                  </>
+                ) : null}
                   </>
                 ) : null}
 
