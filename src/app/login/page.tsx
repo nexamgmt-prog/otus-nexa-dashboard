@@ -303,11 +303,11 @@ export default function LoginPage() {
     >
       <div className="w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.6)] p-6 shadow-lg backdrop-blur-[12px]">
         <div className="mb-[24px] flex justify-center">
-          <div className="flex h-[36.8px] items-center justify-center">
+          <div className="flex h-8 items-center justify-center">
             <img
               src="/frame-1.svg"
               alt="Nexa"
-              className="h-[36.8px] w-auto max-w-[93.15px] object-contain object-left"
+              className="h-8 w-auto object-contain object-left"
             />
           </div>
         </div>

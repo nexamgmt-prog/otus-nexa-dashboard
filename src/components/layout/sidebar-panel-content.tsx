@@ -115,11 +115,11 @@ export function SidebarPanelContent(props: SidebarPanelContentProps) {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col px-4 pb-2 pt-4">
       <div className="mb-6 flex shrink-0 items-center justify-between gap-2 px-3">
-        <div className="flex h-[36.8px] min-w-0 items-center justify-start">
+        <div className="flex h-8 min-w-0 items-center justify-start">
           <img
             src="/frame-1.svg"
             alt="Nexa"
-            className="sidebar-brand-logo h-[36.8px] w-auto max-w-[87px] object-contain object-left"
+            className="sidebar-brand-logo h-8 w-auto object-contain object-left"
           />
         </div>
         {showCollapse ? (
