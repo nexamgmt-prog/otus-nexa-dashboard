@@ -109,11 +109,11 @@ export function LoginEntrance({ isAppReady, isRedirecting, backgroundSrc, childr
         )}
         aria-hidden={!showLoadingBrand}
       >
-        <div className="flex h-8 items-center justify-center">
+        <div className="flex h-[22.4px] items-center justify-center">
           <img
             src={LOGIN_LOGO_SRC}
             alt="Nexa"
-            className="h-8 w-auto object-contain object-center"
+            className="h-[22.4px] w-auto object-contain object-center"
           />
         </div>
         <div
