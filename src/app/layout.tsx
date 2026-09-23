@@ -7,8 +7,8 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme-preference";
 
 export const metadata: Metadata = {
-  title: "NXO System",
-  description: "NXO System — client operations and performance workspace.",
+  title: "Nexa System",
+  description: "Nexa System — client operations and performance workspace.",
   icons: {
     icon: [{ url: "/favicon.png", type: "image/png" }],
     apple: "/favicon.png",

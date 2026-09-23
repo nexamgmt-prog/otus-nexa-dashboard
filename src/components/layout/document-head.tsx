@@ -12,7 +12,7 @@ import {
 import { isAgencyHomePath } from "@/lib/default-landing-path";
 import type { AppUser, Client } from "@/types";
 
-const SYSTEM_TITLE = "NXO System";
+const SYSTEM_TITLE = "Nexa System";
 
 function resolveSelectedClientName(
   currentUser: AppUser,
