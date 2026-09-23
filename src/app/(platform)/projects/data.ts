@@ -9,7 +9,30 @@ export type KanbanColumnId = string;
 
 export type ProjectStatus = string;
 
-export type ProjectType = "Website" | "Monthly Content" | "Paid Traffic";
+/** Project service categories shown in create/edit forms and stored on projects. */
+export const PROJECT_TYPES = [
+  "Website",
+  "Monthly Content",
+  "Paid Traffic",
+  "Branding & Naming",
+  "Social Media Management",
+  "Design & Creative",
+  "Video & Photography",
+  "SEO & Content Marketing",
+  "Email Marketing",
+  "CRM & Automation",
+  "Marketing Strategy",
+  "Campaigns & Launches",
+  "Other",
+] as const;
+
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
+export function normalizeProjectType(value: unknown): ProjectType {
+  return typeof value === "string" && PROJECT_TYPES.some((type) => type === value)
+    ? (value as ProjectType)
+    : "Website";
+}
 
 export type TaskRowStatus =
   | "Not Started"

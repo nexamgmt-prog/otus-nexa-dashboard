@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { Settings2 } from "lucide-react";
-import { emptyProjectsByColumn, type KanbanColumnId, type ProjectType } from "../data";
+import { emptyProjectsByColumn, PROJECT_TYPES, type KanbanColumnId, type ProjectType } from "../data";
 import { KanbanColumn } from "./kanban-column";
 import { EditProjectStatusesModal } from "./edit-project-statuses-modal";
 import { useProjectBoardStatuses } from "./use-project-board-statuses";
@@ -263,9 +263,11 @@ export function ProjectsKanban() {
                   onChange={(e) => setType((e.target.value as ProjectType) || "Website")}
                   className="w-full rounded-[8px] border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-white"
                 >
-                  <option value="Website">Website</option>
-                  <option value="Monthly Content">Monthly Content</option>
-                  <option value="Paid Traffic">Paid Traffic</option>
+                  {PROJECT_TYPES.map((projectType) => (
+                    <option key={projectType} value={projectType}>
+                      {lt(projectType)}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="block space-y-1">

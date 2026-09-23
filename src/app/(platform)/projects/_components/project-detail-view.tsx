@@ -29,7 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { isClientCompany } from "@/lib/client-utils";
 import { createPortal } from "react-dom";
-import type { Project, ProjectStatus, ProjectTaskRow, ProjectType, TaskRowStatus } from "../data";
+import { PROJECT_TYPES, type Project, type ProjectStatus, type ProjectTaskRow, type ProjectType, type TaskRowStatus } from "../data";
 import {
   computeProjectProgressFromTasks,
   formatDisplayDate,
@@ -39,7 +39,6 @@ import {
 } from "../data";
 import { useProjectBoardStatuses } from "./use-project-board-statuses";
 
-const PROJECT_TYPE_OPTIONS: ProjectType[] = ["Website", "Monthly Content", "Paid Traffic"];
 import { useAppContext } from "@/components/providers/app-providers";
 import { useLanguage } from "@/context/language-context";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
@@ -1910,9 +1909,9 @@ export function ProjectDetailView({ project }: { project: Project }) {
                 }
                 className="max-w-[14rem] rounded-[6px] border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1.5 text-sm font-light text-white outline-none"
               >
-                {PROJECT_TYPE_OPTIONS.map((option) => (
+                {PROJECT_TYPES.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {lt(option)}
                   </option>
                 ))}
               </select>
