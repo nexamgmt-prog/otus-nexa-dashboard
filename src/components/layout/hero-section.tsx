@@ -14,6 +14,9 @@ import {
 } from "@/lib/hero-clocks";
 import { formatLongDate, localeTag, timeOfDayGreeting } from "@/lib/locale-format";
 import { cn } from "@/lib/utils";
+import { yearCountdown } from "@/lib/year-countdown";
+import { PUBLISHED_HERO_GLASS, parseHeroGlassConfig, type HeroGlassConfig } from "@/lib/ui-lab/hero-glass";
+import { HeroGlassShaderLayer } from "@/components/layout/hero-glass-shader-layer";
 
 const HERO_CLOCK_MODE_KEY = "clock-mode";
 const HERO_BG_VISIBLE_KEY = "hero-bg-visible";
@@ -52,12 +55,37 @@ function heroControlButtonStyle(onImage: boolean): CSSProperties {
   };
 }
 
-function heroClockCardStyle(onImage: boolean): CSSProperties {
+function heroClockCardStyle(onImage: boolean, glass: HeroGlassConfig): CSSProperties {
   return {
-    ...(onImage ? heroGlassOnImage : heroGlassOnSurface),
+    ...(onImage ? {
+      ...heroGlassOnImage,
+      background: `rgba(255, 255, 255, ${glass.tint / 100})`,
+      backdropFilter: `blur(${glass.blur}px) saturate(${glass.saturation}%)`,
+      WebkitBackdropFilter: `blur(${glass.blur}px) saturate(${glass.saturation}%)`,
+    } : heroGlassOnSurface),
     borderRadius: 8,
     boxSizing: "border-box",
   };
+}
+
+function HeroGlassCardEffects({ onImage, imageUrl, glass }: { onImage: boolean; imageUrl: string; glass: HeroGlassConfig }) {
+  if (!onImage) return null;
+  return (
+    <>
+      <HeroGlassShaderLayer imageUrl={imageUrl} config={glass} />
+      {glass.shine > 0 ? (
+        <span
+          className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] border-l border-t border-white/20"
+          style={{
+            opacity: glass.shine / 100,
+            background: "linear-gradient(130deg, rgba(255,255,255,.38), rgba(255,255,255,.10) 21%, transparent 48%, rgba(255,255,255,.06) 78%, rgba(255,255,255,.22))",
+            boxShadow: "inset 0 8px 15px -13px rgba(255,255,255,.75), inset 0 -8px 15px -13px rgba(255,255,255,.35)",
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+    </>
+  );
 }
 
 function heroClockToggleShellStyle(onImage: boolean): CSSProperties {
@@ -68,7 +96,91 @@ function heroClockToggleShellStyle(onImage: boolean): CSSProperties {
   };
 }
 
+function YearCountdownCard({ date, onImage, imageUrl, language, glass }: {
+  date: Date;
+  onImage: boolean;
+  imageUrl: string;
+  language: "en" | "pt-BR";
+  glass: HeroGlassConfig;
+}) {
+  const { year, elapsedDays, totalDays, remainingDays } = yearCountdown(date);
+  const caption = language === "pt-BR"
+    ? `${remainingDays} ${remainingDays === 1 ? "dia restante" : "dias restantes"}`
+    : `${remainingDays} ${remainingDays === 1 ? "day" : "days"} left`;
+
+  return (
+    <div
+      className="relative isolate flex min-h-0 w-[200px] min-w-[200px] max-w-[200px] shrink-0 flex-col overflow-hidden px-[18px] py-[15px]"
+      style={heroClockCardStyle(onImage, glass)}
+      aria-label={`${year}: ${caption}`}
+    >
+      <HeroGlassCardEffects onImage={onImage} imageUrl={imageUrl} glass={glass} />
+      <div className="relative z-10 flex w-full items-baseline justify-between gap-2">
+        <p className="text-[0.7rem] font-light uppercase tracking-[0.1em] text-[var(--hero-muted)]">{year}</p>
+        <p className="text-right font-[family-name:var(--font-mono)] text-[0.7rem] font-light tabular-nums text-[var(--hero-fg)]">
+          {caption}
+        </p>
+      </div>
+      <div
+        aria-hidden="true"
+        className="relative z-10 mt-auto grid w-full justify-center gap-[1.2px] pt-3"
+        style={{ gridTemplateColumns: "repeat(22, 6.3px)" }}
+      >
+        {Array.from({ length: totalDays }, (_, index) => (
+          <span
+            key={index}
+            className={cn(
+              "h-[6.3px] w-[6.3px] rounded-full",
+              index === elapsedDays - 1
+                ? "bg-[#ff4500]"
+                : index < elapsedDays
+                  ? "bg-[var(--hero-fg)] opacity-20"
+                  : "bg-[var(--hero-fg)] opacity-90",
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type HeroClockMode = "digital" | "analog";
+
+const CLOCK_DOT_GLYPHS: Record<string, readonly string[]> = {
+  "0": ["11111", "10001", "10011", "10101", "11001", "10001", "11111"],
+  "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+  "2": ["11111", "00001", "00001", "11111", "10000", "10000", "11111"],
+  "3": ["11111", "00001", "00001", "01111", "00001", "00001", "11111"],
+  "4": ["10001", "10001", "10001", "11111", "00001", "00001", "00001"],
+  "5": ["11111", "10000", "10000", "11111", "00001", "00001", "11111"],
+  "6": ["11111", "10000", "10000", "11111", "10001", "10001", "11111"],
+  "7": ["11111", "00001", "00010", "00100", "00100", "00100", "00100"],
+  "8": ["11111", "10001", "10001", "11111", "10001", "10001", "11111"],
+  "9": ["11111", "10001", "10001", "11111", "00001", "00001", "11111"],
+  ":": ["000", "010", "010", "000", "010", "010", "000"],
+};
+
+const DotMatrixClockFace = memo(function DotMatrixClockFace({ value }: { value: string }) {
+  let offset = 0;
+  const dots = [...value].flatMap((character, characterIndex) => {
+    const glyph = CLOCK_DOT_GLYPHS[character];
+    if (!glyph) return [];
+    const start = offset;
+    offset += character === ":" ? 12 : 24;
+    return glyph.flatMap((row, y) => [...row].map((point, x) => (
+      <circle
+        key={`${characterIndex}-${y}-${x}`}
+        cx={start + x * 4.5 + 1.6}
+        cy={y * 4.5 + 1.6}
+        r="1.55"
+        fill="var(--hero-fg)"
+        opacity={point === "1" ? 0.94 : 0.09}
+      />
+    )));
+  });
+
+  return <svg width="118" height="36" viewBox="0 0 108 32" className="block shrink-0" aria-hidden="true">{dots}</svg>;
+});
 
 function HeroDigitalClockTime({ date, timeZone, lang }: { date: Date; timeZone: string; lang: "en" | "pt-BR" }) {
   const parts = new Intl.DateTimeFormat(localeTag(lang), {
@@ -77,24 +189,17 @@ function HeroDigitalClockTime({ date, timeZone, lang }: { date: Date; timeZone: 
     minute: "2-digit",
     hour12: true,
   }).formatToParts(date);
+  const hour = (parts.find((part) => part.type === "hour")?.value ?? "0").padStart(2, "0");
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+  const period = parts.find((part) => part.type === "dayPeriod")?.value.toUpperCase() ?? "";
 
   return (
-    <p
-      className={cn(
-        "whitespace-nowrap font-[family-name:var(--font-mono)] text-[1.75rem] font-light tabular-nums leading-none",
-        "text-[var(--hero-fg)]",
-      )}
-    >
-      {parts.map((part, i) =>
-        part.type === "dayPeriod" ? (
-          <span key={i} className="ml-0.5 align-baseline text-[0.55em] font-normal uppercase leading-none tracking-wide">
-            {part.value.toUpperCase()}
-          </span>
-        ) : (
-          <span key={i}>{part.value}</span>
-        ),
-      )}
-    </p>
+    <span className="inline-flex items-end gap-1" role="img" aria-label={`${hour}:${minute} ${period}`}>
+      <DotMatrixClockFace value={`${hour}:${minute}`} />
+      <span aria-hidden="true" className="mb-0.5 font-[family-name:var(--font-mono)] text-[0.65rem] font-light leading-none text-[var(--hero-muted)]">
+        {period}
+      </span>
+    </span>
   );
 }
 
@@ -114,33 +219,62 @@ function getHMSInZone(date: Date, timeZone: string): { hour: number; minute: num
 function HeroAnalogClock({
   date,
   timeZone,
-  onImage,
 }: {
   date: Date;
   timeZone: string;
-  onImage: boolean;
 }) {
   const { hour, minute, second } = getHMSInZone(date, timeZone);
   const h12 = hour % 12;
   const hourDeg = (h12 + minute / 60) * 30;
   const minuteDeg = (minute + second / 60) * 6;
   const secondDeg = second * 6;
-  const hand = onImage ? "#ffffff" : "var(--text)";
-  const face = onImage ? "rgba(0, 0, 0, 0.45)" : "var(--surface)";
 
   return (
-    <svg width="100" height="100" viewBox="0 0 100 100" className="block shrink-0" aria-hidden>
-      <circle cx="50" cy="50" r="49" fill={face} stroke="var(--border-strong)" strokeWidth="1" />
+    <svg
+      width="112"
+      height="112"
+      viewBox="0 0 100 100"
+      className="block shrink-0"
+      role="img"
+      aria-label={`${String(h12 || 12).padStart(2, "0")}:${String(minute).padStart(2, "0")}`}
+    >
+      <circle cx="50" cy="50" r="48" fill="#08090b" stroke="#2b2c2f" strokeWidth="4" />
+      <circle cx="50" cy="50" r="44" fill="#030405" stroke="#141518" strokeWidth="1" />
+      {Array.from({ length: 60 }, (_, index) => {
+        const radians = (index * 6 - 90) * Math.PI / 180;
+        const major = index % 5 === 0;
+        const inner = major ? 37 : 40;
+        return (
+          <line
+            key={index}
+            x1={50 + Math.cos(radians) * inner}
+            y1={50 + Math.sin(radians) * inner}
+            x2={50 + Math.cos(radians) * 42}
+            y2={50 + Math.sin(radians) * 42}
+            stroke="#e8e8e8"
+            strokeWidth={major ? 1.15 : 0.6}
+            opacity={major ? 0.7 : 0.35}
+          />
+        );
+      })}
+      {Array.from({ length: 15 }, (_, row) =>
+        Array.from({ length: 15 }, (_, column) => {
+          const x = 22 + column * 4;
+          const y = 22 + row * 4;
+          if (Math.hypot(x - 50, y - 50) > 28) return null;
+          return <circle key={`${row}-${column}`} cx={x} cy={y} r="0.7" fill="#d8d8d8" opacity="0.3" />;
+        }),
+      )}
       <g transform={`rotate(${hourDeg} 50 50)`}>
-        <line x1="50" y1="50" x2="50" y2="32" stroke={hand} strokeWidth="4" strokeLinecap="round" />
+        <line x1="50" y1="54" x2="50" y2="29" stroke="#f5f5f5" strokeWidth="2.4" strokeLinecap="round" />
       </g>
       <g transform={`rotate(${minuteDeg} 50 50)`}>
-        <line x1="50" y1="50" x2="50" y2="22" stroke={hand} strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="50" y1="55" x2="50" y2="18" stroke="#f5f5f5" strokeWidth="1.8" strokeLinecap="round" />
       </g>
       <g transform={`rotate(${secondDeg} 50 50)`}>
-        <line x1="50" y1="50" x2="50" y2="16" stroke="#FF4500" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="50" y1="59" x2="50" y2="17" stroke="#f0444c" strokeWidth="1" strokeLinecap="round" />
       </g>
-      <circle cx="50" cy="50" r="4" fill={hand} />
+      <circle cx="50" cy="50" r="2.2" fill="#f0444c" />
     </svg>
   );
 }
@@ -345,6 +479,32 @@ function HeroSection() {
   const { currentUser, heroImageUrl, language, saveHeroClocks } = useAppContext();
   const { t: lt } = useLanguage();
   const [, setTick] = useState(0);
+  const [glass, setGlass] = useState<HeroGlassConfig>(PUBLISHED_HERO_GLASS);
+
+  useEffect(() => {
+    let active = true;
+    const refreshGlass = async () => {
+      try {
+        const response = await fetch("/api/ui-lab/hero-glass/published", { cache: "no-store" });
+        if (!response.ok) return;
+        const body = await response.json() as { config?: unknown };
+        const next = parseHeroGlassConfig(body.config);
+        if (active && next) setGlass(next);
+      } catch { /* Keep the built-in glass when offline. */ }
+    };
+    void refreshGlass();
+    const onFocus = () => void refreshGlass();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "nexa-ui-lab-published") void refreshGlass();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
   const sectionRef = useRef<HTMLElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const dragActiveRef = useRef(false);
@@ -655,20 +815,22 @@ function HeroSection() {
               />
             </div>
             <div className="flex flex-row flex-wrap items-stretch justify-center gap-4">
+              <YearCountdownCard date={now} onImage={onImage} imageUrl={heroImageUrl} language={language} glass={glass} />
               {clockCities.map((city) => (
                 <div
                   key={city.id}
-                  className="flex min-h-0 w-[200px] min-w-[200px] max-w-[200px] shrink-0 flex-col"
-                  style={heroClockCardStyle(onImage)}
+                  className="relative isolate flex min-h-0 w-[200px] min-w-[200px] max-w-[200px] shrink-0 flex-col overflow-hidden"
+                  style={heroClockCardStyle(onImage, glass)}
                 >
-                  <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col items-center justify-center gap-2 p-[24px] text-center">
+                  <HeroGlassCardEffects onImage={onImage} imageUrl={heroImageUrl} glass={glass} />
+                  <div className="relative z-10 flex min-h-0 min-w-0 w-full flex-1 flex-col items-center justify-center gap-2 p-[24px] text-center">
                     <p className="text-[0.7rem] font-light uppercase tracking-[0.1em] text-[var(--hero-muted)]">
                       {city.city}
                     </p>
                     {clockMode === "digital" ? (
                       <HeroDigitalClockTime date={now} timeZone={city.timeZone} lang={language} />
                     ) : (
-                      <HeroAnalogClock date={now} timeZone={city.timeZone} onImage={onImage} />
+                      <HeroAnalogClock date={now} timeZone={city.timeZone} />
                     )}
                     <p className="text-[0.7rem] font-light text-[var(--hero-faint)]">{city.abbrev}</p>
                   </div>

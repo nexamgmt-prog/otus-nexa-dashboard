@@ -428,6 +428,16 @@ export function SettingsModule() {
       <PageHeader title={lt("SETTINGS")} subtitle={lt("User management and permissions")} />
 
       {showClientsTab ? (
+        <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] px-4 py-3">
+          <div>
+            <p className="text-sm text-[var(--text)]">Laboratório de interface</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">Ajuste os componentes, salve o rascunho e publique uma versão no sistema.</p>
+          </div>
+          <a href="/glass-lab.html" className="shrink-0 rounded-lg border border-[var(--border-strong)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--surface-elevated)]">Abrir laboratório</a>
+        </div>
+      ) : null}
+
+      {showClientsTab ? (
         <div className="mb-4 flex gap-2 border-b border-[var(--border)]">
           <button
             type="button"
