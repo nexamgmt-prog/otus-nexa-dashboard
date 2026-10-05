@@ -51,3 +51,4 @@ export const PUBLISHED_HERO_GLASS =
   };
 
 export const HERO_GLASS_COMPONENT_KEY = "hero.glass";
+export const PUBLISHED_UI_LAB_USER_ID = "__published__";

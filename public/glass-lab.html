@@ -93,7 +93,7 @@
     </section>
     <section class="controls" aria-label="Controles do efeito">
       <div><h2>Visualização</h2><div class="segmented" role="group" aria-label="Tipo de vidro"><button type="button" data-mode="css" aria-pressed="false">Blur + reflexos</button><button type="button" data-mode="shader" aria-pressed="true">Refração WebGL</button></div><p class="control-note">A versão WebGL é aplicada só nos cards. O reflexo responde discretamente ao cursor.</p><div class="actions"><button class="action" type="button" id="clockMode">Ver relógio analógico</button><button class="action" type="button" id="detailImage">Testar fundo detalhado</button><label class="action">Testar outra imagem<input id="imageInput" type="file" accept="image/*" /></label><button class="action" type="button" id="reset">Restaurar ajustes</button><button class="action primary" type="button" id="publish" disabled>Publicar no sistema</button></div><p class="status" id="status" role="status">Carregando rascunho…</p></div>
-      <div><h2>Ajustes do vidro</h2><div class="slider-list"><div class="slider"><label for="blur">Desfoque de fundo <output id="blurValue">7 px</output></label><input id="blur" type="range" min="0" max="40" value="7" /></div><div class="slider"><label for="saturation">Saturação <output id="saturationValue">130%</output></label><input id="saturation" type="range" min="80" max="170" value="130" /></div><div class="slider"><label for="tint">Camada clara <output id="tintValue">0%</output></label><input id="tint" type="range" min="0" max="30" value="0" /></div><div class="slider"><label for="shine">Reflexo <output id="shineValue">26%</output></label><input id="shine" type="range" min="0" max="100" value="26" /></div><div class="slider"><label for="refraction">Refração <output id="refractionValue">18 px</output></label><input id="refraction" type="range" min="0" max="20" value="18" /></div></div><p class="control-note">Os ajustes são salvos automaticamente como rascunho. Publicar cria uma versão no GitHub para a Vercel implantar.</p></div>
+      <div><h2>Ajustes do vidro</h2><div class="slider-list"><div class="slider"><label for="blur">Desfoque de fundo <output id="blurValue">7 px</output></label><input id="blur" type="range" min="0" max="40" value="7" /></div><div class="slider"><label for="saturation">Saturação <output id="saturationValue">130%</output></label><input id="saturation" type="range" min="80" max="170" value="130" /></div><div class="slider"><label for="tint">Camada clara <output id="tintValue">0%</output></label><input id="tint" type="range" min="0" max="30" value="0" /></div><div class="slider"><label for="shine">Reflexo <output id="shineValue">26%</output></label><input id="shine" type="range" min="0" max="100" value="26" /></div><div class="slider"><label for="refraction">Refração <output id="refractionValue">18 px</output></label><input id="refraction" type="range" min="0" max="20" value="18" /></div></div><p class="control-note">Os ajustes são salvos automaticamente como rascunho. Publicar aplica o efeito nos cards da hero do sistema.</p></div>
     </section>
   </main>
   <script>
@@ -106,7 +106,7 @@
     const defaults = {blur: 7, saturation: 130, tint: 0, shine: 26, refraction: 18};
     const glyphs = {0:['11111','10001','10011','10101','11001','10001','11111'],1:['00100','01100','00100','00100','00100','00100','01110'],2:['11111','00001','00001','11111','10000','10000','11111'],3:['11111','00001','00001','01111','00001','00001','11111'],4:['10001','10001','10001','11111','00001','00001','00001'],5:['11111','10000','10000','11111','00001','00001','11111'],6:['11111','10000','10000','11111','10001','10001','11111'],7:['11111','00001','00010','00100','00100','00100','00100'],8:['11111','10001','10001','11111','10001','10001','11111'],9:['11111','10001','10001','11111','10001','10001','11111'],':':['000','010','010','000','010','010','000']};
     let mode = 'shader'; let analog = false; let imageObjectUrl = null; let frame = 0;
-    let revision = 0; let ready = false; let githubReady = false; let saveTimer = 0;
+    let revision = 0; let ready = false; let canPublish = false; let saveTimer = 0;
     let saving = null; let dirty = false; let saveFailed = false;
     const publishButton = document.getElementById('publish');
     const storageKey = 'nexa-ui-lab:hero.glass:v1';
@@ -138,8 +138,8 @@
           const body=await response.json();
           if (!response.ok) throw Error(body.error||'Não foi possível salvar.');
           revision=body.revision; saveFailed=false;
-          if (!dirty) { persistLocal(body.updatedAt); status.textContent=githubReady?'Rascunho salvo. Pronto para publicar.':'Rascunho salvo. Publicação aguarda configuração do GitHub.'; }
-          publishButton.disabled=!githubReady;
+          if (!dirty) { persistLocal(body.updatedAt); status.textContent='Rascunho salvo. Pronto para publicar.'; }
+          publishButton.disabled=!canPublish;
         } catch(error) {
           saveFailed=true; dirty=true; publishButton.disabled=true;
           status.textContent=error.message+' Ajustes guardados neste navegador.';
@@ -155,12 +155,12 @@
         const response=await fetch('/api/ui-lab/hero-glass',{credentials:'same-origin',cache:'no-store'});
         const body=await response.json();
         if (!response.ok) throw Error(body.error||'Não foi possível carregar o rascunho.');
-        revision=body.revision; githubReady=body.githubReady;
+        revision=body.revision; canPublish=body.canPublish===true;
         const localIsNewer=cached?.config && cached.updatedAt && (!body.updatedAt || Date.parse(cached.updatedAt)>Date.parse(body.updatedAt));
         if (!localIsNewer) { applyDraft(body.draft); persistLocal(body.updatedAt||new Date().toISOString()); }
         ready=true;
         if (localIsNewer || revision===0) changed();
-        else { publishButton.disabled=!githubReady; status.textContent=githubReady?'Rascunho salvo. Pronto para publicar.':'Rascunho salvo. Publicação aguarda configuração do GitHub.'; }
+        else { publishButton.disabled=!canPublish; status.textContent='Rascunho salvo. Pronto para publicar.'; }
       } catch(error) { ready=true; saveFailed=true; publishButton.disabled=true; status.textContent=error.message+' Ajustes guardados neste navegador.'; }
     }
     const renderers = [];
@@ -215,15 +215,15 @@
     publishButton.addEventListener('click',async()=>{
       publishButton.disabled=true;
       if (!await saveNow()) return;
-      status.textContent='Publicando no GitHub…';
+      status.textContent='Aplicando efeito no sistema…';
       try {
         const response=await fetch('/api/ui-lab/hero-glass',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision})});
         const body=await response.json();
         if (!response.ok) throw Error(body.error||'Não foi possível publicar.');
-        status.replaceChildren(document.createTextNode('Versão enviada. A Vercel iniciará o deploy. '));
-        if (body.commitUrl) {const link=document.createElement('a');link.href=body.commitUrl;link.textContent='Ver commit';link.target='_blank';link.rel='noopener noreferrer';link.style.color='#ff7044';status.append(link);}
+        status.textContent='Efeito publicado. Abra ou recarregue o dashboard para conferir.';
+        try { localStorage.setItem('nexa-ui-lab-published',String(Date.now())); } catch {}
       } catch(error) { status.textContent=error.message; }
-      finally { publishButton.disabled=!githubReady; }
+      finally { publishButton.disabled=!canPublish; }
     });
     document.getElementById('imageInput').addEventListener('change',event=>{const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){status.textContent='Escolha um arquivo de imagem.';return;}if(imageObjectUrl)URL.revokeObjectURL(imageObjectUrl);imageObjectUrl=URL.createObjectURL(file);img.src=imageObjectUrl;status.textContent='Imagem carregada apenas nesta prévia.';});
     img.addEventListener('load',()=>{try{renderers.forEach(r=>r.upload());scheduleDraw();}catch(error){status.textContent='Não foi possível usar esta imagem no WebGL: '+error.message;}});

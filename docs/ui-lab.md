@@ -1,25 +1,13 @@
 # Laboratório de interface Nexa
 
-O laboratório em `/glass-lab.html` está disponível para administradores Nexa/Otus. O componente atual é `hero.glass`, aplicado aos cards dos dias restantes e dos relógios. A chave é semântica: classes e IDs de DOM são detalhes de renderização, não identificadores de publicação.
+O laboratório em `/glass-lab.html` está disponível para administradores Nexa/Otus. O componente atual é `hero.glass`, aplicado aos cards dos dias restantes e dos relógios. A chave é semântica: classes e IDs de DOM não são identificadores de publicação.
 
-## Fluxo
+Os controles atualizam a prévia imediatamente e salvam o rascunho do administrador em `public.ui_lab_drafts`, com revisão otimista. Uma cópia local protege alterações em caso de falha de rede. **Publicar no sistema** grava o preset ativo na mesma tabela sob o usuário reservado `__published__`. O dashboard lê esse preset ao abrir e ao voltar para a aba, sem esperar um build. Se a leitura falhar, usa os valores versionados em `src/design-system/tokens.json`.
 
-1. Os controles atualizam a prévia imediatamente e salvam o rascunho do administrador em `public.ui_lab_drafts`, com revisão otimista. Uma cópia local protege alterações em caso de falha de rede.
-2. **Publicar no sistema** lê a revisão salva e atualiza somente `hero.glass` em `src/design-system/tokens.json` no repositório GitHub configurado. O commit é a versão publicada e pode ser revertido.
-3. A integração GitHub da Vercel implanta o commit em `main`. `hero-section.tsx` importa o token publicado no build; mudanças no rascunho nunca alteram o dashboard.
+O modo WebGL usa a imagem da hero como textura e mantém `backdrop-filter` como base quando a imagem não puder ser carregada com CORS ou WebGL estiver indisponível. A troca de fundo e de relógio no laboratório serve apenas para avaliar o efeito; não é publicada.
 
-Os testes de imagem de fundo e troca entre relógio digital/analógico servem apenas para avaliar a prévia. Não são parâmetros do vidro.
+Aplicar `supabase/ui-lab-drafts.sql` ao banco usado pelo app. A tabela tem RLS sem políticas para `anon` ou `authenticated`; apenas as rotas no servidor usam `service_role`. A API de alteração exige sessão de administrador da agência, confere a revisão do rascunho e restringe mutações à mesma origem. O preset ativo contém apenas números e o modo do vidro, então sua leitura pode ser pública.
 
-## Configuração única
+O GitHub `main` está atrás da versão do sistema implantada pela CLI. Sincronizar a fonte antes de voltar a automatizar commits e deploys pelo laboratório; um commit de tokens hoje acionaria um deploy de código antigo. A aplicação imediata via banco mantém o laboratório utilizável sem esse risco. O PR de implementação deve ser reconciliado com a fonte atual antes do merge.
 
-- Aplicar `supabase/ui-lab-drafts.sql` ao banco usado pelo app. A tabela tem RLS sem políticas para `anon` ou `authenticated`; apenas a rota autenticada usa `service_role`.
-- Configurar `UI_LAB_GITHUB_TOKEN` como **Secret** na Vercel (Production) e em `.env.local` para testar publicação local. Usar um token fine-grained restrito ao repositório `nexamgmt-prog/otus-nexa-dashboard`, com `Contents: Read and write`, data de expiração e sem permissões adicionais. Nunca colocar o token no HTML, no Git ou em `NEXT_PUBLIC_*`.
-- Opcional: `UI_LAB_GITHUB_REPOSITORY` e `UI_LAB_GITHUB_BRANCH`. Defaults: `nexamgmt-prog/otus-nexa-dashboard` e `main`.
-- Após reconciliar o GitHub com a versão em produção, definir `UI_LAB_GITHUB_BASE_SHA` com o commit revisado que contém o sistema atual. A API confere que `main` contém esse commit antes de publicar. Sem essa referência, o botão permanece bloqueado para evitar que um deploy a partir de código antigo substitua recursos recentes.
-- O deploy inicial deve conter o laboratório, a API e `src/design-system/tokens.json`. Depois disso, os próximos cliques em Publicar alteram apenas o token e acionam o deploy normal da Vercel.
-
-A publicação fica desabilitada quando a credencial GitHub não existe; o rascunho continua salvando. O modo WebGL usa a imagem da hero como textura e mantém `backdrop-filter` como base/fallback quando a imagem não puder ser carregada com CORS ou WebGL estiver indisponível.
-
-## Próximos componentes
-
-Para botões, criar uma chave semântica como `button.primary` no mesmo arquivo de tokens, um editor próprio no laboratório e consumo pelo componente compartilhado do sistema. Preservar rascunho e publicação separados, validar valores no servidor e versionar por commit.
+Para botões, criar uma chave semântica como `button.primary`, um editor próprio no laboratório e consumo pelo componente compartilhado do sistema. Preservar rascunho e publicação separados, validar valores no servidor e registrar versões publicadas.

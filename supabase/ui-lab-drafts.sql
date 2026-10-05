@@ -1,4 +1,4 @@
--- Private UI-lab drafts. Published values live in src/design-system/tokens.json.
+-- Private UI-lab presets. The reserved user_id '__published__' holds the active preset.
 create table if not exists public.ui_lab_drafts (
   user_id text not null,
   component_key text not null,

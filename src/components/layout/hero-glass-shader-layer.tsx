@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { PUBLISHED_HERO_GLASS } from "@/lib/ui-lab/hero-glass";
+import type { HeroGlassConfig } from "@/lib/ui-lab/hero-glass";
 
 const vertexSource = `
 attribute vec2 aPosition;
@@ -51,11 +51,11 @@ function compileShader(gl: WebGLRenderingContext, type: number, source: string) 
 }
 
 /** A translucent refraction layer. CSS backdrop blur remains underneath as a fallback. */
-export function HeroGlassShaderLayer({ imageUrl }: { imageUrl: string }) {
+export function HeroGlassShaderLayer({ imageUrl, config }: { imageUrl: string; config: HeroGlassConfig }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (PUBLISHED_HERO_GLASS.mode !== "shader") return;
+    if (config.mode !== "shader") return;
     const canvas = canvasRef.current;
     const card = canvas?.parentElement;
     const hero = card?.closest<HTMLElement>(".dashboard-hero");
@@ -120,8 +120,8 @@ export function HeroGlassShaderLayer({ imageUrl }: { imageUrl: string }) {
       gl.uniform2f(uniforms.uRectSize, rect.width, rect.height);
       gl.uniform2f(uniforms.uImageSize, image.naturalWidth, image.naturalHeight);
       gl.uniform2f(uniforms.uPointer, pointerX, pointerY);
-      gl.uniform1f(uniforms.uSaturation, PUBLISHED_HERO_GLASS.saturation / 100);
-      gl.uniform1f(uniforms.uRefraction, PUBLISHED_HERO_GLASS.refraction);
+      gl.uniform1f(uniforms.uSaturation, config.saturation / 100);
+      gl.uniform1f(uniforms.uRefraction, config.refraction);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(draw); };
@@ -160,8 +160,8 @@ export function HeroGlassShaderLayer({ imageUrl }: { imageUrl: string }) {
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
     };
-  }, [imageUrl]);
+  }, [imageUrl, config]);
 
-  if (PUBLISHED_HERO_GLASS.mode !== "shader") return null;
+  if (config.mode !== "shader") return null;
   return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 z-0 h-full w-full" aria-hidden="true" />;
 }

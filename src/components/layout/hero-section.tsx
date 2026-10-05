@@ -15,7 +15,7 @@ import {
 import { formatLongDate, localeTag, timeOfDayGreeting } from "@/lib/locale-format";
 import { cn } from "@/lib/utils";
 import { yearCountdown } from "@/lib/year-countdown";
-import { PUBLISHED_HERO_GLASS } from "@/lib/ui-lab/hero-glass";
+import { PUBLISHED_HERO_GLASS, parseHeroGlassConfig, type HeroGlassConfig } from "@/lib/ui-lab/hero-glass";
 import { HeroGlassShaderLayer } from "@/components/layout/hero-glass-shader-layer";
 
 const HERO_CLOCK_MODE_KEY = "clock-mode";
@@ -55,29 +55,29 @@ function heroControlButtonStyle(onImage: boolean): CSSProperties {
   };
 }
 
-function heroClockCardStyle(onImage: boolean): CSSProperties {
+function heroClockCardStyle(onImage: boolean, glass: HeroGlassConfig): CSSProperties {
   return {
     ...(onImage ? {
       ...heroGlassOnImage,
-      background: `rgba(255, 255, 255, ${PUBLISHED_HERO_GLASS.tint / 100})`,
-      backdropFilter: `blur(${PUBLISHED_HERO_GLASS.blur}px) saturate(${PUBLISHED_HERO_GLASS.saturation}%)`,
-      WebkitBackdropFilter: `blur(${PUBLISHED_HERO_GLASS.blur}px) saturate(${PUBLISHED_HERO_GLASS.saturation}%)`,
+      background: `rgba(255, 255, 255, ${glass.tint / 100})`,
+      backdropFilter: `blur(${glass.blur}px) saturate(${glass.saturation}%)`,
+      WebkitBackdropFilter: `blur(${glass.blur}px) saturate(${glass.saturation}%)`,
     } : heroGlassOnSurface),
     borderRadius: 8,
     boxSizing: "border-box",
   };
 }
 
-function HeroGlassCardEffects({ onImage, imageUrl }: { onImage: boolean; imageUrl: string }) {
+function HeroGlassCardEffects({ onImage, imageUrl, glass }: { onImage: boolean; imageUrl: string; glass: HeroGlassConfig }) {
   if (!onImage) return null;
   return (
     <>
-      <HeroGlassShaderLayer imageUrl={imageUrl} />
-      {PUBLISHED_HERO_GLASS.shine > 0 ? (
+      <HeroGlassShaderLayer imageUrl={imageUrl} config={glass} />
+      {glass.shine > 0 ? (
         <span
           className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] border-l border-t border-white/20"
           style={{
-            opacity: PUBLISHED_HERO_GLASS.shine / 100,
+            opacity: glass.shine / 100,
             background: "linear-gradient(130deg, rgba(255,255,255,.38), rgba(255,255,255,.10) 21%, transparent 48%, rgba(255,255,255,.06) 78%, rgba(255,255,255,.22))",
             boxShadow: "inset 0 8px 15px -13px rgba(255,255,255,.75), inset 0 -8px 15px -13px rgba(255,255,255,.35)",
           }}
@@ -96,11 +96,12 @@ function heroClockToggleShellStyle(onImage: boolean): CSSProperties {
   };
 }
 
-function YearCountdownCard({ date, onImage, imageUrl, language }: {
+function YearCountdownCard({ date, onImage, imageUrl, language, glass }: {
   date: Date;
   onImage: boolean;
   imageUrl: string;
   language: "en" | "pt-BR";
+  glass: HeroGlassConfig;
 }) {
   const { year, elapsedDays, totalDays, remainingDays } = yearCountdown(date);
   const caption = language === "pt-BR"
@@ -110,10 +111,10 @@ function YearCountdownCard({ date, onImage, imageUrl, language }: {
   return (
     <div
       className="relative isolate flex min-h-0 w-[200px] min-w-[200px] max-w-[200px] shrink-0 flex-col overflow-hidden px-[18px] py-[15px]"
-      style={heroClockCardStyle(onImage)}
+      style={heroClockCardStyle(onImage, glass)}
       aria-label={`${year}: ${caption}`}
     >
-      <HeroGlassCardEffects onImage={onImage} imageUrl={imageUrl} />
+      <HeroGlassCardEffects onImage={onImage} imageUrl={imageUrl} glass={glass} />
       <div className="relative z-10 flex w-full items-baseline justify-between gap-2">
         <p className="text-[0.7rem] font-light uppercase tracking-[0.1em] text-[var(--hero-muted)]">{year}</p>
         <p className="text-right font-[family-name:var(--font-mono)] text-[0.7rem] font-light tabular-nums text-[var(--hero-fg)]">
@@ -478,6 +479,32 @@ function HeroSection() {
   const { currentUser, heroImageUrl, language, saveHeroClocks } = useAppContext();
   const { t: lt } = useLanguage();
   const [, setTick] = useState(0);
+  const [glass, setGlass] = useState<HeroGlassConfig>(PUBLISHED_HERO_GLASS);
+
+  useEffect(() => {
+    let active = true;
+    const refreshGlass = async () => {
+      try {
+        const response = await fetch("/api/ui-lab/hero-glass/published", { cache: "no-store" });
+        if (!response.ok) return;
+        const body = await response.json() as { config?: unknown };
+        const next = parseHeroGlassConfig(body.config);
+        if (active && next) setGlass(next);
+      } catch { /* Keep the built-in glass when offline. */ }
+    };
+    void refreshGlass();
+    const onFocus = () => void refreshGlass();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "nexa-ui-lab-published") void refreshGlass();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
   const sectionRef = useRef<HTMLElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const dragActiveRef = useRef(false);
@@ -788,14 +815,14 @@ function HeroSection() {
               />
             </div>
             <div className="flex flex-row flex-wrap items-stretch justify-center gap-4">
-              <YearCountdownCard date={now} onImage={onImage} imageUrl={heroImageUrl} language={language} />
+              <YearCountdownCard date={now} onImage={onImage} imageUrl={heroImageUrl} language={language} glass={glass} />
               {clockCities.map((city) => (
                 <div
                   key={city.id}
                   className="relative isolate flex min-h-0 w-[200px] min-w-[200px] max-w-[200px] shrink-0 flex-col overflow-hidden"
-                  style={heroClockCardStyle(onImage)}
+                  style={heroClockCardStyle(onImage, glass)}
                 >
-                  <HeroGlassCardEffects onImage={onImage} imageUrl={heroImageUrl} />
+                  <HeroGlassCardEffects onImage={onImage} imageUrl={heroImageUrl} glass={glass} />
                   <div className="relative z-10 flex min-h-0 min-w-0 w-full flex-1 flex-col items-center justify-center gap-2 p-[24px] text-center">
                     <p className="text-[0.7rem] font-light uppercase tracking-[0.1em] text-[var(--hero-muted)]">
                       {city.city}
