@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     revision: data?.revision ?? 0,
     updatedAt: data?.updated_at ?? null,
     published: PUBLISHED_HERO_GLASS,
-    githubReady: Boolean(process.env.UI_LAB_GITHUB_TOKEN?.trim()),
+    githubReady: Boolean(process.env.UI_LAB_GITHUB_TOKEN?.trim() && /^[a-f\d]{40}$/i.test(process.env.UI_LAB_GITHUB_BASE_SHA?.trim() ?? "")),
   });
 }
 
@@ -104,6 +104,10 @@ export async function POST(request: Request) {
   if (!userId) return json({ error: "Acesso restrito aos administradores da agência." }, 403);
   const token = process.env.UI_LAB_GITHUB_TOKEN?.trim();
   if (!token) return json({ error: "Publicação no GitHub ainda não configurada. O rascunho está salvo no Nexa." }, 503);
+  const requiredBase = process.env.UI_LAB_GITHUB_BASE_SHA?.trim();
+  if (!requiredBase || !/^[a-f\d]{40}$/i.test(requiredBase)) {
+    return json({ error: "Publicação bloqueada até a versão atual do sistema ser sincronizada com o GitHub." }, 503);
+  }
   let raw: Record<string, unknown>;
   try {
     raw = await request.json();
@@ -133,6 +137,15 @@ export async function POST(request: Request) {
     "X-GitHub-Api-Version": "2022-11-28",
   };
   try {
+    const ancestry = await fetch(
+      `https://api.github.com/repos/${repository}/compare/${requiredBase}...${encodeURIComponent(branch)}`,
+      { headers, cache: "no-store" },
+    );
+    if (!ancestry.ok) return json({ error: "A branch do GitHub ainda não contém a versão base conferida do sistema." }, 409);
+    const comparison = await ancestry.json() as { status?: string };
+    if (comparison.status !== "identical" && comparison.status !== "ahead") {
+      return json({ error: "A branch do GitHub não está baseada na versão atual do sistema." }, 409);
+    }
     const current = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers, cache: "no-store" });
     if (!current.ok && current.status !== 404) return json({ error: `GitHub recusou a leitura do arquivo (${current.status}).` }, 502);
     const file = current.ok ? (await current.json()) as GitHubFile : null;

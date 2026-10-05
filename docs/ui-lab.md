@@ -15,6 +15,7 @@ Os testes de imagem de fundo e troca entre relógio digital/analógico servem ap
 - Aplicar `supabase/ui-lab-drafts.sql` ao banco usado pelo app. A tabela tem RLS sem políticas para `anon` ou `authenticated`; apenas a rota autenticada usa `service_role`.
 - Configurar `UI_LAB_GITHUB_TOKEN` como **Secret** na Vercel (Production) e em `.env.local` para testar publicação local. Usar um token fine-grained restrito ao repositório `nexamgmt-prog/otus-nexa-dashboard`, com `Contents: Read and write`, data de expiração e sem permissões adicionais. Nunca colocar o token no HTML, no Git ou em `NEXT_PUBLIC_*`.
 - Opcional: `UI_LAB_GITHUB_REPOSITORY` e `UI_LAB_GITHUB_BRANCH`. Defaults: `nexamgmt-prog/otus-nexa-dashboard` e `main`.
+- Após reconciliar o GitHub com a versão em produção, definir `UI_LAB_GITHUB_BASE_SHA` com o commit revisado que contém o sistema atual. A API confere que `main` contém esse commit antes de publicar. Sem essa referência, o botão permanece bloqueado para evitar que um deploy a partir de código antigo substitua recursos recentes.
 - O deploy inicial deve conter o laboratório, a API e `src/design-system/tokens.json`. Depois disso, os próximos cliques em Publicar alteram apenas o token e acionam o deploy normal da Vercel.
 
 A publicação fica desabilitada quando a credencial GitHub não existe; o rascunho continua salvando. O modo WebGL usa a imagem da hero como textura e mantém `backdrop-filter` como base/fallback quando a imagem não puder ser carregada com CORS ou WebGL estiver indisponível.
