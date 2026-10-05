@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Laboratório de vidro · Nexa</title>
+  <style>
+    :root { color-scheme: dark; font-family: Arial, Helvetica, sans-serif; background: #0b0b0d; color: #f7f7f8; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; min-height: 100vh; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .page { max-width: 1500px; margin: auto; padding: clamp(18px, 3vw, 40px); }
+    .header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+    .eyebrow { margin: 0 0 8px; color: #9999a2; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(24px, 3vw, 38px); font-weight: 400; letter-spacing: -.04em; }
+    .intro { max-width: 590px; margin: 8px 0 0; color: #a9a9af; font-size: 14px; line-height: 1.5; }
+    .back { color: #dddde1; text-decoration: none; font-size: 13px; white-space: nowrap; }
+    .back:hover { color: white; }
+    .hero { --blur: 7px; --sat: 130%; --tint: 0; --shine: .26; --refraction: 18; position: relative; isolation: isolate; display: flex; min-height: clamp(370px, 55vw, 520px); align-items: end; justify-content: space-between; gap: 28px; overflow: hidden; border: 1px solid #2b2b30; border-radius: 18px; padding: clamp(22px, 4vw, 54px); background: #18191c; }
+    .hero-image, .hero-shade { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .hero-image { object-fit: cover; object-position: center; z-index: -2; }
+    .hero-shade { z-index: -1; background: linear-gradient(110deg, rgba(0,0,0,.79) 0%, rgba(0,0,0,.38) 54%, rgba(0,0,0,.68) 100%); }
+    .greeting { min-width: 0; padding-bottom: 3px; }
+    .greeting small { display: block; margin-bottom: 12px; color: #ffffffa3; font-size: 12px; letter-spacing: .07em; }
+    .greeting strong { display: block; font-size: clamp(38px, 5.8vw, 82px); font-weight: 300; letter-spacing: -.06em; line-height: .98; }
+    .greeting strong:first-of-type { color: #ffffff9e; }
+    .cards { display: flex; flex-wrap: wrap; align-items: stretch; justify-content: end; gap: 14px; max-width: 690px; }
+    .glass-card { position: relative; isolation: isolate; flex: 0 0 200px; width: 200px; min-height: 204px; overflow: hidden; border: 1px solid rgba(255,255,255,.20); border-radius: 12px; background: rgba(255,255,255,var(--tint)); box-shadow: inset 1px 1px 0 rgba(255,255,255,.28), inset -1px -1px 0 rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.14); backdrop-filter: blur(var(--blur)) saturate(var(--sat)); -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat)); }
+    .glass-card::before, .glass-card::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none; }
+    .glass-card::before { background: transparent; }
+    .glass-card::after { background: linear-gradient(130deg, rgba(255,255,255,.38), rgba(255,255,255,.10) 21%, transparent 48%, rgba(255,255,255,.06) 78%, rgba(255,255,255,.22)); border-top: 1px solid rgba(255,255,255,.20); border-left: 1px solid rgba(255,255,255,.12); box-shadow: inset 0 8px 15px -13px rgba(255,255,255,.75), inset 0 -8px 15px -13px rgba(255,255,255,.35); opacity: var(--shine); }
+    .glass-card canvas { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    .shader-mode .glass-card { background: rgba(10,12,16,calc(var(--tint) * .45)); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    .shader-mode .glass-card::before { backdrop-filter: blur(var(--blur)) saturate(var(--sat)); -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat)); }
+    .shader-mode .glass-card canvas { display: block; }
+    .card-content { position: relative; z-index: 2; display: flex; height: 100%; min-height: 204px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; pointer-events: none; }
+    .card-content .place { color: #ffffffb0; font-size: 11px; letter-spacing: .13em; text-transform: uppercase; }
+    .card-content .zone { color: #ffffffa3; font-size: 11px; }
+    .card-top { width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .card-top .year { color: #ffffffa3; font-size: 12px; letter-spacing: .1em; }
+    .card-top .remaining { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; white-space: nowrap; }
+    .countdown { justify-content: space-between; align-items: stretch; }
+    .dots { display: grid; grid-template-columns: repeat(22, 6px); gap: 1.4px; justify-content: center; align-content: end; margin-top: auto; }
+    .dots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: .9; }
+    .dots i.elapsed { opacity: .22; }
+    .dots i.today { background: #ff4500; opacity: 1; }
+    .digital { display: flex; align-items: end; gap: 6px; }
+    .digital svg { width: 124px; height: 42px; }
+    .digital small { padding-bottom: 5px; color: #ffffffa3; font-size: 10px; }
+    .analog { width: 112px; height: 112px; border: 3px solid #36383c; border-radius: 50%; background: #08090b; box-shadow: inset 0 0 0 3px #151619; }
+    .analog svg { width: 100%; height: 100%; }
+    .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 22px; padding: clamp(18px, 3vw, 28px); border: 1px solid #29292e; border-radius: 16px; background: #151517; }
+    .controls h2 { margin: 0 0 16px; font-size: 17px; font-weight: 500; }
+    .segmented { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px; border: 1px solid #35353a; border-radius: 10px; width: fit-content; }
+    .segmented button { min-height: 34px; padding: 7px 12px; border: 0; border-radius: 7px; background: transparent; color: #a8a8ae; font-size: 12px; }
+    .segmented button[aria-pressed="true"] { background: #35353b; color: white; }
+    .control-note, .status { max-width: 520px; margin: 14px 0 0; color: #9999a2; font-size: 12px; line-height: 1.5; }
+    .slider-list { display: grid; gap: 14px; }
+    .slider { display: grid; gap: 6px; }
+    .slider label { display: flex; justify-content: space-between; gap: 12px; color: #d5d5d9; font-size: 12px; }
+    .slider output { color: #a8a8ae; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .slider input { width: 100%; accent-color: #ff4500; }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+    .action { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid #3e3e44; border-radius: 8px; background: #252529; color: #f5f5f6; font-size: 12px; }
+    .action:hover { background: #323238; }
+    .action:disabled { cursor: not-allowed; opacity: .45; }
+    .action.primary { border-color: #ff4500; background: #ff4500; color: #fff; }
+    .action.primary:not(:disabled):hover { background: #e83d00; }
+    .action input { display: none; }
+    @media (max-width: 1040px) { .hero { align-items: start; flex-direction: column; justify-content: space-between; min-height: 580px; } .cards { max-width: 100%; justify-content: start; } }
+    @media (max-width: 720px) { .page { padding: 14px; } .header { align-items: start; flex-direction: column; } .hero { min-height: 660px; padding: 24px; } .cards { gap: 8px; width: 100%; } .glass-card { flex: 1 1 155px; width: auto; min-width: 155px; max-width: 230px; } .controls { grid-template-columns: 1fr; } }
+    @media (max-width: 420px) { .hero { min-height: 750px; padding: 18px; } .cards { justify-content: center; } .glass-card { flex: 1 1 145px; min-width: 145px; } .card-content { padding: 12px; } .dots { grid-template-columns: repeat(22, 5px); gap: 1.1px; } .dots i { width: 5px; height: 5px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div><p class="eyebrow">Nexa · Laboratório de interface</p><h1>Vidro da hero</h1><p class="intro">Ajuste e salve o vidro dos cards. Publique quando quiser aplicar a versão ao dashboard.</p></div>
+      <a class="back" href="/dashboard">Voltar ao dashboard ↗</a>
+    </header>
+    <section class="hero" id="hero" aria-label="Prévia da hero">
+      <img class="hero-image" id="sourceImage" src="/Biotecc%20-%202026-159.jpg" alt="" crossorigin="anonymous" />
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="greeting"><small id="dateLine">segunda-feira, 5 de outubro</small><strong>Bom dia,</strong><strong>Matheus</strong></div>
+      <div class="cards">
+        <article class="glass-card" aria-label="Dias restantes do ano"><canvas aria-hidden="true"></canvas><div class="card-content countdown"><div class="card-top"><span class="year" id="year">2026</span><span class="remaining" id="remaining">87 dias restantes</span></div><div class="dots" id="dots" aria-hidden="true"></div></div></article>
+        <article class="glass-card" aria-label="Relógio de Curitiba"><canvas aria-hidden="true"></canvas><div class="card-content"><span class="place">Curitiba</span><div class="digital" id="digitalClock"></div><div class="analog" id="analogClock" hidden></div><span class="zone">BRT</span></div></article>
+        <article class="glass-card" aria-label="Relógio de Los Angeles"><canvas aria-hidden="true"></canvas><div class="card-content"><span class="place">Los Angeles</span><div class="digital" id="digitalClock2"></div><div class="analog" id="analogClock2" hidden></div><span class="zone">PT</span></div></article>
+      </div>
+    </section>
+    <section class="controls" aria-label="Controles do efeito">
+      <div><h2>Visualização</h2><div class="segmented" role="group" aria-label="Tipo de vidro"><button type="button" data-mode="css" aria-pressed="false">Blur + reflexos</button><button type="button" data-mode="shader" aria-pressed="true">Refração WebGL</button></div><p class="control-note">A versão WebGL é aplicada só nos cards. O reflexo responde discretamente ao cursor.</p><div class="actions"><button class="action" type="button" id="clockMode">Ver relógio analógico</button><button class="action" type="button" id="detailImage">Testar fundo detalhado</button><label class="action">Testar outra imagem<input id="imageInput" type="file" accept="image/*" /></label><button class="action" type="button" id="reset">Restaurar ajustes</button><button class="action primary" type="button" id="publish" disabled>Publicar no sistema</button></div><p class="status" id="status" role="status">Carregando rascunho…</p></div>
+      <div><h2>Ajustes do vidro</h2><div class="slider-list"><div class="slider"><label for="blur">Desfoque de fundo <output id="blurValue">7 px</output></label><input id="blur" type="range" min="0" max="40" value="7" /></div><div class="slider"><label for="saturation">Saturação <output id="saturationValue">130%</output></label><input id="saturation" type="range" min="80" max="170" value="130" /></div><div class="slider"><label for="tint">Camada clara <output id="tintValue">0%</output></label><input id="tint" type="range" min="0" max="30" value="0" /></div><div class="slider"><label for="shine">Reflexo <output id="shineValue">26%</output></label><input id="shine" type="range" min="0" max="100" value="26" /></div><div class="slider"><label for="refraction">Refração <output id="refractionValue">18 px</output></label><input id="refraction" type="range" min="0" max="20" value="18" /></div></div><p class="control-note">Os ajustes são salvos automaticamente como rascunho. Publicar cria uma versão no GitHub para a Vercel implantar.</p></div>
+    </section>
+  </main>
+  <script>
+  (() => {
+    const hero = document.getElementById('hero');
+    const img = document.getElementById('sourceImage');
+    const status = document.getElementById('status');
+    const cards = [...document.querySelectorAll('.glass-card')];
+    const sliders = Object.fromEntries(['blur','saturation','tint','shine','refraction'].map(id => [id, document.getElementById(id)]));
+    const defaults = {blur: 7, saturation: 130, tint: 0, shine: 26, refraction: 18};
+    const glyphs = {0:['11111','10001','10011','10101','11001','10001','11111'],1:['00100','01100','00100','00100','00100','00100','01110'],2:['11111','00001','00001','11111','10000','10000','11111'],3:['11111','00001','00001','01111','00001','00001','11111'],4:['10001','10001','10001','11111','00001','00001','00001'],5:['11111','10000','10000','11111','00001','00001','11111'],6:['11111','10000','10000','11111','10001','10001','11111'],7:['11111','00001','00010','00100','00100','00100','00100'],8:['11111','10001','10001','11111','10001','10001','11111'],9:['11111','10001','10001','11111','10001','10001','11111'],':':['000','010','010','000','010','010','000']};
+    let mode = 'shader'; let analog = false; let imageObjectUrl = null; let frame = 0;
+    let revision = 0; let ready = false; let githubReady = false; let saveTimer = 0;
+    let saving = null; let dirty = false; let saveFailed = false;
+    const publishButton = document.getElementById('publish');
+    const storageKey = 'nexa-ui-lab:hero.glass:v1';
+    const snapshot = () => ({mode, ...Object.fromEntries(Object.entries(sliders).map(([key, el]) => [key, Number(el.value)]))});
+    function applyDraft(config) {
+      if (!config || !['css','shader'].includes(config.mode)) return;
+      for (const [key, el] of Object.entries(sliders)) if (Number.isInteger(config[key]) && config[key]>=Number(el.min) && config[key]<=Number(el.max)) el.value=config[key];
+      mode = config.mode;
+      document.querySelectorAll('[data-mode]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.mode===mode)));
+      hero.classList.toggle('shader-mode',mode==='shader');
+      update();
+    }
+    function localDraft() { try { return JSON.parse(localStorage.getItem(storageKey)||'null'); } catch { return null; } }
+    function persistLocal(updatedAt=new Date().toISOString()) { try { localStorage.setItem(storageKey,JSON.stringify({config:snapshot(),updatedAt})); } catch {} }
+    function changed() {
+      if (!ready) return;
+      dirty = true; saveFailed = false; persistLocal();
+      status.textContent='Salvando rascunho…';
+      clearTimeout(saveTimer); saveTimer=setTimeout(()=>void saveNow(),500);
+    }
+    async function saveNow() {
+      clearTimeout(saveTimer);
+      if (saving) { await saving; if (saveFailed) return false; if (dirty) return saveNow(); return true; }
+      if (!dirty) return !saveFailed;
+      const config=snapshot(); dirty=false;
+      saving=(async()=>{
+        try {
+          const response=await fetch('/api/ui-lab/hero-glass',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({config,revision})});
+          const body=await response.json();
+          if (!response.ok) throw Error(body.error||'Não foi possível salvar.');
+          revision=body.revision; saveFailed=false;
+          if (!dirty) { persistLocal(body.updatedAt); status.textContent=githubReady?'Rascunho salvo. Pronto para publicar.':'Rascunho salvo. Publicação aguarda configuração do GitHub.'; }
+          publishButton.disabled=!githubReady;
+        } catch(error) {
+          saveFailed=true; dirty=true; publishButton.disabled=true;
+          status.textContent=error.message+' Ajustes guardados neste navegador.';
+        } finally { saving=null; }
+      })();
+      await saving;
+      return !saveFailed;
+    }
+    async function loadDraft() {
+      const cached=localDraft();
+      if (cached?.config) applyDraft(cached.config);
+      try {
+        const response=await fetch('/api/ui-lab/hero-glass',{credentials:'same-origin',cache:'no-store'});
+        const body=await response.json();
+        if (!response.ok) throw Error(body.error||'Não foi possível carregar o rascunho.');
+        revision=body.revision; githubReady=body.githubReady;
+        const localIsNewer=cached?.config && cached.updatedAt && (!body.updatedAt || Date.parse(cached.updatedAt)>Date.parse(body.updatedAt));
+        if (!localIsNewer) { applyDraft(body.draft); persistLocal(body.updatedAt||new Date().toISOString()); }
+        ready=true;
+        if (localIsNewer || revision===0) changed();
+        else { publishButton.disabled=!githubReady; status.textContent=githubReady?'Rascunho salvo. Pronto para publicar.':'Rascunho salvo. Publicação aguarda configuração do GitHub.'; }
+      } catch(error) { ready=true; saveFailed=true; publishButton.disabled=true; status.textContent=error.message+' Ajustes guardados neste navegador.'; }
+    }
+    const renderers = [];
+    function paintClocks() {
+      const now = new Date();
+      [['America/Sao_Paulo','digitalClock','analogClock'],['America/Los_Angeles','digitalClock2','analogClock2']].forEach(([zone,digitalId,analogId]) => {
+        const parts = new Intl.DateTimeFormat('en-US',{timeZone:zone,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}).formatToParts(now);
+        const get = type => parts.find(p => p.type === type)?.value || '00';
+        const face = get('hour') + ':' + get('minute');
+        let offset = 0;
+        const circles = [...face].map(c => { const pattern=glyphs[c]; const left=offset; offset+=c===':'?12:24; return pattern.map((row,y)=>[...row].map((point,x)=>`<circle cx="${left+x*4.5+1.6}" cy="${y*4.5+1.6}" r="1.55" fill="#fff" opacity="${point==='1'?.94:.1}"/>`).join('')).join(''); }).join('');
+        document.getElementById(digitalId).innerHTML=`<svg viewBox="0 0 108 32" aria-hidden="true">${circles}</svg><small>${get('dayPeriod').toUpperCase()}</small>`;
+        const hour=Number(get('hour'))%12, minute=Number(get('minute')), second=Number(get('second'));
+        const marks=Array.from({length:60},(_,i)=>{const a=(i*6-90)*Math.PI/180,r=i%5?40:37;return `<line x1="${50+Math.cos(a)*r}" y1="${50+Math.sin(a)*r}" x2="${50+Math.cos(a)*43}" y2="${50+Math.sin(a)*43}" stroke="#fff" stroke-opacity="${i%5?.3:.7}" stroke-width="${i%5?.6:1}"/>`}).join('');
+        const dots=Array.from({length:15},(_,y)=>Array.from({length:15},(_,x)=>Math.hypot(x*4-28,y*4-28)<28?`<circle cx="${22+x*4}" cy="${22+y*4}" r=".7" fill="#ddd" opacity=".3"/>`:'').join('')).join('');
+        document.getElementById(analogId).innerHTML=`<svg viewBox="0 0 100 100" aria-hidden="true">${marks}${dots}<line x1="50" y1="53" x2="50" y2="30" stroke="#fff" stroke-width="2.4" stroke-linecap="round" transform="rotate(${(hour+minute/60)*30} 50 50)"/><line x1="50" y1="54" x2="50" y2="18" stroke="#fff" stroke-width="1.8" stroke-linecap="round" transform="rotate(${(minute+second/60)*6} 50 50)"/><line x1="50" y1="58" x2="50" y2="18" stroke="#f0444c" transform="rotate(${second*6} 50 50)"/><circle cx="50" cy="50" r="2" fill="#f0444c"/></svg>`;
+      });
+    }
+    function paintCountdown() {
+      const today=new Date(), year=today.getFullYear(), start=new Date(year,0,1), next=new Date(year+1,0,1);
+      const elapsed=Math.floor((Date.UTC(year,today.getMonth(),today.getDate())-Date.UTC(year,0,1))/86400000);
+      const total=Math.round((next-start)/86400000), remaining=total-elapsed-1;
+      document.getElementById('year').textContent=year;
+      document.getElementById('remaining').textContent=`${remaining} ${remaining===1?'dia restante':'dias restantes'}`;
+      document.getElementById('dateLine').textContent=new Intl.DateTimeFormat('pt-BR',{weekday:'long',day:'numeric',month:'long'}).format(today);
+      document.getElementById('dots').innerHTML=Array.from({length:total},(_,i)=>`<i class="${i===elapsed?'today':i<elapsed?'elapsed':''}"></i>`).join('');
+    }
+    const vertex=`attribute vec2 aPosition; varying vec2 vUv; void main(){vUv=aPosition*.5+.5;gl_Position=vec4(aPosition,0.,1.);}`;
+    const fragment=`precision mediump float; varying vec2 vUv; uniform sampler2D uImage; uniform vec2 uStage,uRectPosition,uRectSize,uImageSize,uPointer; uniform float uSaturation,uRefraction;
+      vec2 sourceUv(vec2 local) { vec2 stage=uRectPosition+vec2(local.x,1.-local.y)*uRectSize; float scale=max(uStage.x/uImageSize.x,uStage.y/uImageSize.y);vec2 drawn=uImageSize*scale;vec2 offset=(uStage-drawn)*.5;return vec2((stage.x-offset.x)/drawn.x,1.-(stage.y-offset.y)/drawn.y); }
+      vec3 sampleImage(vec2 local){return texture2D(uImage,clamp(sourceUv(local),0.,1.)).rgb;}
+      void main(){vec2 p=(vUv-.5)*uRectSize;vec2 pointer=(uPointer-.5)*uRectSize;float radius=length(p/vec2(uRectSize.x*.75,uRectSize.y*.75));float envelope=pow(max(0.,1.-radius),1.5);vec2 direction=normalize(p-pointer*.18+vec2(.001));vec2 warped=vUv+direction*(uRefraction*envelope)/uRectSize;vec3 rgb=sampleImage(warped);float gray=dot(rgb,vec3(.2126,.7152,.0722));rgb=mix(vec3(gray),rgb,uSaturation);float shade=mix(.70,.38,clamp((uRectPosition.x+vUv.x*uRectSize.x)/uStage.x,0.,1.));float alpha=.3*sqrt(clamp(uRefraction/20.,0.,1.));gl_FragColor=vec4(rgb*shade,alpha);}`;
+    function shader(gl,type,source){const item=gl.createShader(type);gl.shaderSource(item,source);gl.compileShader(item);if(!gl.getShaderParameter(item,gl.COMPILE_STATUS)){throw Error(gl.getShaderInfoLog(item));}return item;}
+    function makeRenderer(canvas) {
+      const gl=canvas.getContext('webgl',{alpha:true,premultipliedAlpha:false,antialias:false,preserveDrawingBuffer:false});
+      if(!gl) throw Error('WebGL indisponível neste navegador');
+      const program=gl.createProgram();gl.attachShader(program,shader(gl,gl.VERTEX_SHADER,vertex));gl.attachShader(program,shader(gl,gl.FRAGMENT_SHADER,fragment));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+      const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);const position=gl.getAttribLocation(program,'aPosition');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
+      const texture=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+      const uniforms=Object.fromEntries(['uImage','uStage','uRectPosition','uRectSize','uImageSize','uPointer','uSaturation','uRefraction'].map(name=>[name,gl.getUniformLocation(program,name)]));gl.uniform1i(uniforms.uImage,0);
+      return {gl,canvas,texture,uniforms,upload(){gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);},draw(){const stage=hero.getBoundingClientRect(),rect=canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,1.5);const w=Math.round(rect.width*dpr),h=Math.round(rect.height*dpr);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}gl.viewport(0,0,w,h);gl.useProgram(program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.uniform2f(uniforms.uStage,stage.width,stage.height);gl.uniform2f(uniforms.uRectPosition,rect.left-stage.left,rect.top-stage.top);gl.uniform2f(uniforms.uRectSize,rect.width,rect.height);gl.uniform2f(uniforms.uImageSize,img.naturalWidth,img.naturalHeight);gl.uniform2f(uniforms.uPointer,+(canvas.parentElement.dataset.pointerX||.5),+(canvas.parentElement.dataset.pointerY||.5));gl.uniform1f(uniforms.uSaturation,+sliders.saturation.value/100);gl.uniform1f(uniforms.uRefraction,+sliders.refraction.value);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);}};
+    }
+    function draw(){frame=0;if(mode!=='shader'||!img.complete||!img.naturalWidth)return;renderers.forEach(r=>r.draw());}
+    function scheduleDraw(){if(!frame)frame=requestAnimationFrame(draw);}
+    function update(){hero.style.setProperty('--blur',sliders.blur.value+'px');hero.style.setProperty('--sat',sliders.saturation.value+'%');hero.style.setProperty('--tint',(+sliders.tint.value/100).toFixed(2));hero.style.setProperty('--shine',(+sliders.shine.value/100).toFixed(2));hero.style.setProperty('--refraction',sliders.refraction.value);Object.entries(sliders).forEach(([key,el])=>{document.getElementById(key+'Value').textContent=el.value+(key==='blur'||key==='refraction'?' px':'%');});scheduleDraw();}
+    Object.values(sliders).forEach(el=>el.addEventListener('input',()=>{update();changed();}));
+    document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{mode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));hero.classList.toggle('shader-mode',mode==='shader');scheduleDraw();changed();}));
+    cards.forEach(card=>card.addEventListener('pointermove',event=>{const rect=card.getBoundingClientRect();card.dataset.pointerX=((event.clientX-rect.left)/rect.width).toFixed(3);card.dataset.pointerY=((event.clientY-rect.top)/rect.height).toFixed(3);scheduleDraw();}));
+    document.getElementById('clockMode').addEventListener('click',event=>{analog=!analog;document.querySelectorAll('.digital').forEach(el=>el.hidden=analog);document.querySelectorAll('.analog').forEach(el=>el.hidden=!analog);event.currentTarget.textContent=analog?'Ver relógio digital':'Ver relógio analógico';});
+    document.getElementById('detailImage').addEventListener('click',event=>{const detailed=img.getAttribute('src')==='/login-bg.png';img.src=detailed?'/Biotecc%20-%202026-159.jpg':'/login-bg.png';event.currentTarget.textContent=detailed?'Testar fundo detalhado':'Voltar ao fundo da hero';status.textContent=detailed?'Fundo da hero restaurado.':'Fundo detalhado ativado para avaliar o desfoque.';});
+    document.getElementById('reset').addEventListener('click',()=>{Object.entries(defaults).forEach(([key,value])=>{sliders[key].value=value;});update();changed();});
+    publishButton.addEventListener('click',async()=>{
+      publishButton.disabled=true;
+      if (!await saveNow()) return;
+      status.textContent='Publicando no GitHub…';
+      try {
+        const response=await fetch('/api/ui-lab/hero-glass',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision})});
+        const body=await response.json();
+        if (!response.ok) throw Error(body.error||'Não foi possível publicar.');
+        status.replaceChildren(document.createTextNode('Versão enviada. A Vercel iniciará o deploy. '));
+        if (body.commitUrl) {const link=document.createElement('a');link.href=body.commitUrl;link.textContent='Ver commit';link.target='_blank';link.rel='noopener noreferrer';link.style.color='#ff7044';status.append(link);}
+      } catch(error) { status.textContent=error.message; }
+      finally { publishButton.disabled=!githubReady; }
+    });
+    document.getElementById('imageInput').addEventListener('change',event=>{const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){status.textContent='Escolha um arquivo de imagem.';return;}if(imageObjectUrl)URL.revokeObjectURL(imageObjectUrl);imageObjectUrl=URL.createObjectURL(file);img.src=imageObjectUrl;status.textContent='Imagem carregada apenas nesta prévia.';});
+    img.addEventListener('load',()=>{try{renderers.forEach(r=>r.upload());scheduleDraw();}catch(error){status.textContent='Não foi possível usar esta imagem no WebGL: '+error.message;}});
+    img.addEventListener('error',()=>{status.textContent='A imagem de fundo não carregou.';});
+    window.addEventListener('resize',scheduleDraw);if('ResizeObserver'in window)new ResizeObserver(scheduleDraw).observe(hero);
+    try{cards.forEach(card=>renderers.push(makeRenderer(card.querySelector('canvas'))));if(img.complete&&img.naturalWidth)renderers.forEach(r=>r.upload());}catch(error){status.textContent='WebGL indisponível; o modo CSS continua funcionando.';document.querySelector('[data-mode="shader"]').disabled=true;}
+    paintCountdown();paintClocks();setInterval(paintClocks,1000);hero.classList.add('shader-mode');update();void loadDraft();
+  })();
+  </script>
+</body>
+</html>
